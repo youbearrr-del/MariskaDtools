@@ -2511,15 +2511,16 @@
             selectedColorTemp = color;
         }
 
-        function handleAddNewUser(e) {
+        async function handleAddNewUser(e) {
             e.preventDefault();
             const name = document.getElementById('newUserName').value.trim();
             const email = document.getElementById('newUserEmail').value.trim();
             const role = document.getElementById('newUserRole').value;
 
             if (!name || !email) return;
+            if (teamUsers.some(u => String(u.email || '').toLowerCase() === email.toLowerCase())) { showToast('Email ini sudah terdaftar sebagai anggota'); return; }
 
-            teamUsers.push({
+            const nu = {
                 id: 'user_' + Date.now(),
                 name,
                 email,
@@ -2528,16 +2529,21 @@
                 status: 'offline',
                 lastSeen: null,
                 joinedAt: Date.now()
-            });
+            };
+            teamUsers.push(nu);
 
             saveAllState();
             renderUsers();
             renderSpaceChatList();
             toggleModal('addUserModal');
-            showToast(`Anggota ${name} ditambahkan!`);
-
             document.getElementById('newUserName').value = '';
             document.getElementById('newUserEmail').value = '';
+
+            // simpan ke cloud dan beri tahu hasilnya dengan jelas
+            if (window.fbSync && fbSync.saveUser) {
+                try { await fbSync.saveUser(nu); showToast(`Anggota ${name} ditambahkan dan tersinkron`); }
+                catch (err) { showToast(`${name} baru tersimpan di perangkat ini. Cloud gagal: ${err.message}`); }
+            } else showToast(`${name} baru tersimpan di perangkat ini. Firebase belum terhubung`);
         }
 
         function deleteUser(id) {
@@ -3076,6 +3082,7 @@
             'auth/popup-closed-by-user': 'Login dibatalkan',
             'auth/cancelled-popup-request': 'Login dibatalkan',
             'auth/network-request-failed': 'Koneksi internet bermasalah',
+            'auth/missing-initial-state': 'Login terhenti karena penyimpanan browser diblokir. Matikan Private Browsing dan buka web ini langsung di Safari/Chrome, lalu coba lagi',
             'auth/account-exists-with-different-credential': 'Email ini sudah terdaftar dengan cara masuk lain'
         };
         const gDone = u => window.onLoginSuccess({ name: u.displayName, email: u.email });
@@ -3090,15 +3097,27 @@
                 await gDone(r.user);
             } catch (e) {
                 console.warn(e);
-                if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+                // Redirect hanya aman jika web ini satu domain dengan authDomain; di domain lain Safari iPhone memblokirnya
+                const sameOrigin = location.hostname === firebaseConfig.authDomain;
+                if ((e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') && sameOrigin) {
                     gLabel('Mengalihkan ke Google...');
                     try { await signInWithRedirect(auth, provider); return; } catch (e2) { e = e2; }
                 }
                 gBtn(true); gLabel('Masuk dengan Google');
-                toast(gErr[e.code] || ('Login Google gagal: ' + (e.message || e.code)));
+                if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') toast('Pop-up Google diblokir. Izinkan pop-up untuk situs ini, atau buka web ini langsung di Safari/Chrome (bukan dari dalam aplikasi lain), lalu coba lagi');
+                else toast(gErr[e.code] || ('Login Google gagal: ' + (e.message || e.code)));
             }
         };
         getRedirectResult(auth).then(r => { if (r && r.user) gDone(r.user); }).catch(e => { console.warn(e); if (gErr[e.code]) toast(gErr[e.code]); });
+
+        // ---- simpan anggota baru langsung ke Firestore, dengan hasil yang bisa dibaca ----
+        sync.saveUser = async u => {
+            if (!sync.ready) throw new Error('belum terhubung ke Firebase, muat ulang halaman');
+            const nf = flat(pick(u, USER_FIELDS));
+            cache.users[String(u.id)] = nf;
+            try { await withTimeout(setDoc(doc(fs, 'users', String(u.id)), nf), 10000); }
+            catch (e) { delete cache.users[String(u.id)]; throw new Error(/permission/i.test(e.message) ? 'izin Firestore ditolak, periksa Rules' : e.message); }
+        };
 
         // ---- mulai ----
         (async function init() {
