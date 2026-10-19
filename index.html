@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Ruang Kerja Kolaboratif - SpaceChat</title>
+    <title>MariskaTools</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
@@ -127,8 +127,8 @@
                     </div>
                     <div>
                         <h1 class="font-extrabold text-xl sm:text-2xl text-slate-900 tracking-tight flex items-center gap-2">
-                            CollabSpace
-                            <span class="hidden sm:inline text-[10px] sm:text-xs bg-space-50 text-space-600 border border-space-500/30 font-bold px-2 py-0.5 rounded-full">SpaceChat UI</span>
+                            MariskaTools
+                            <span class="hidden sm:inline text-[10px] sm:text-xs bg-space-50 text-space-600 border border-space-500/30 font-bold px-2 py-0.5 rounded-full">Workspace</span>
                         </h1>
                         <p class="text-[11px] font-medium text-slate-400 mt-0.5 hidden sm:block">
                             Workspace Kolaboratif Tim Side-by-Side
@@ -148,16 +148,16 @@
                 <button id="tabBtnUsers" onclick="switchTab('users')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-user-group"></i> Tim
                 </button>
-                <button id="tabBtnNotes" onclick="switchTab('notes')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
+                <button id="tabBtnNotes" data-flag="catatan" onclick="switchTab('notes')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-note-sticky"></i> Catatan
                 </button>
-                <button id="tabBtnTasks" onclick="switchTab('tasks')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
+                <button id="tabBtnTasks" data-flag="tugas" onclick="switchTab('tasks')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-list-check"></i> Tugas
                 </button>
                 <button id="tabBtnProfile" onclick="switchTab('profile')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-circle-user"></i> Profil
                 </button>
-                <button id="tabBtnRooms" onclick="switchTab('rooms')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
+                <button id="tabBtnRooms" data-flag="ruang" onclick="switchTab('rooms')" class="px-3.5 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-couch"></i> Ruang
                 </button>
             </nav>
@@ -208,7 +208,7 @@
             <div class="bg-gradient-to-r from-space-900 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div class="relative z-10 max-w-2xl">
                     <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold text-space-100 mb-3">
-                        <i class="fa-solid fa-rocket mr-1 text-space-accent"></i> SpaceChat Workspace
+                        <i class="fa-solid fa-rocket mr-1 text-space-accent"></i> MariskaTools
                     </span>
                     <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Selamat Datang Kembali, <span id="dashWelcomeName" class="text-space-500">Pengguna</span>!</h2>
                     <p class="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
@@ -562,9 +562,9 @@
                     <div>
                         <label class="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Tingkat Prioritas</label>
                         <select id="todoPriority" class="w-full text-xs border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-space-600 bg-white font-bold text-slate-700">
-                            <option value="Tinggi">Tinggi 🔥</option>
-                            <option value="Sedang" selected>Sedang ⚡</option>
-                            <option value="Rendah">Rendah ☕</option>
+                            <option value="Tinggi">Tinggi</option>
+                            <option value="Sedang" selected>Sedang</option>
+                            <option value="Rendah">Rendah</option>
                         </select>
                     </div>
                     <div class="flex items-end">
@@ -784,7 +784,7 @@
                 </button>
             </div>
             
-            <label class="block w-full mb-3 text-center bg-space-50 hover:bg-space-100 text-space-600 text-xs font-bold py-3 rounded-xl border border-space-500/30 cursor-pointer"><i class="fa-regular fa-image mr-1.5"></i>Kirim foto<input type="file" accept="image/*" class="hidden" onchange="sendChatPhoto(this)"></label>
+            <label data-flag="foto_chat" class="block w-full mb-3 text-center bg-space-50 hover:bg-space-100 text-space-600 text-xs font-bold py-3 rounded-xl border border-space-500/30 cursor-pointer"><i class="fa-regular fa-image mr-1.5"></i>Kirim foto<input type="file" accept="image/*" class="hidden" onchange="sendChatPhoto(this)"></label>
             <p class="text-xs text-slate-500 mb-4">Atau pilih Sticky Note / Tugas untuk dilampirkan langsung ke obrolan aktif:</p>
 
             <div class="space-y-4 max-h-60 overflow-y-auto">
@@ -808,7 +808,7 @@
                 <i class="fa-solid fa-link"></i>
             </div>
             <h3 class="font-bold text-lg text-slate-900 mb-1">Undang Anggota Tim</h3>
-            <p class="text-xs text-slate-500 mb-4">Bagikan link gabung ke SpaceChat Workspace ini:</p>
+            <p class="text-xs text-slate-500 mb-4">Bagikan link gabung ke MariskaTools ini:</p>
 
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2 rounded-xl mb-4">
                 <input id="inviteLinkInput" type="text" readonly value="" class="bg-transparent text-xs text-slate-600 flex-1 px-2 focus:outline-none font-mono">
@@ -832,7 +832,7 @@
                             <path d="M12 2.25c-5.385 0-9.75 3.805-9.75 8.5 0 2.8 1.57 5.28 4.02 6.88-.18.96-.75 2.45-2.01 3.56 0 0 2.29.13 4.41-1.34 1.05.28 2.18.44 3.33.44 5.385 0 9.75-3.805 9.75-8.5s-4.365-8.5-9.75-8.5zm1 12h-2v-2h2v2zm0-4h-2V6h2v4z"/>
                         </svg>
             </div>
-            <h1 class="mt-5 font-extrabold text-2xl text-slate-900 tracking-tight">CollabSpace</h1>
+            <h1 class="mt-5 font-extrabold text-2xl text-slate-900 tracking-tight">MariskaTools</h1>
             <p class="mt-1.5 text-sm text-slate-500 font-medium">Masuk untuk melanjutkan ke ruang kerja tim Anda.</p>
 
             <!-- TOMBOL LOGIN GOOGLE: sambungkan di fungsi loginWithGoogle() -->
@@ -843,10 +843,202 @@
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-24 left-4 right-4 sm:left-auto sm:bottom-28 sm:right-8 bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl transition-all duration-300 opacity-0 pointer-events-none transform translate-y-4 z-[90] flex items-center gap-2">
-        <i class="fa-solid fa-rocket text-space-accent text-base"></i>
+    <div id="toast" role="status" aria-live="polite" class="fixed bottom-24 left-4 right-4 sm:left-auto sm:bottom-28 sm:right-8 sm:max-w-sm bg-white text-slate-700 border border-slate-200 text-[13px] font-semibold pl-3 pr-4 py-3 rounded-2xl shadow-[0_10px_30px_-8px_rgba(15,23,42,.25)] transition-all duration-300 opacity-0 pointer-events-none transform translate-y-4 z-[90] flex items-center gap-3">
+        <span class="w-7 h-7 rounded-full bg-space-50 text-space-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-check text-[11px]"></i></span>
         <span id="toastMsg">Notifikasi</span>
     </div>
+
+
+    <style>
+        /* ===== Dialog kustom (pengganti alert/confirm/prompt bawaan browser) ===== */
+        .dlg-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.42); backdrop-filter: blur(3px); opacity: 0; transition: opacity .18s ease; }
+        .dlg-overlay.show { opacity: 1; }
+        .dlg-card { width: 100%; max-width: 380px; background: #fff; border: 1px solid #E2E8F0; border-radius: 24px; padding: 24px; box-shadow: 0 24px 60px -12px rgba(15,23,42,.35); transform: translateY(10px) scale(.97); transition: transform .2s ease; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .dlg-overlay.show .dlg-card { transform: none; }
+        .dlg-icon { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: #EEF2FF; color: #4F46E5; font-size: 17px; margin-bottom: 14px; }
+        .dlg-icon.danger { background: #FFF1F2; color: #E11D48; }
+        .dlg-title { font-size: 16px; font-weight: 800; color: #0F172A; line-height: 1.3; }
+        .dlg-msg { margin-top: 6px; font-size: 13px; font-weight: 500; color: #64748B; line-height: 1.55; }
+        .dlg-input { width: 100%; margin-top: 16px; border: 1px solid #E2E8F0; border-radius: 12px; padding: 11px 14px; font-size: 16px; font-weight: 700; letter-spacing: .12em; text-align: center; color: #0F172A; background: #F8FAFC; outline: none; transition: border-color .15s, box-shadow .15s, background .15s; }
+        .dlg-input:focus { border-color: #4F46E5; background: #fff; box-shadow: 0 0 0 4px rgba(79,70,229,.12); }
+        .dlg-actions { display: flex; gap: 10px; margin-top: 22px; }
+        .dlg-btn { flex: 1; padding: 11px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; border: 1px solid transparent; cursor: pointer; transition: background .15s, transform .1s; }
+        .dlg-btn:active { transform: scale(.97); }
+        .dlg-btn.ghost { background: #F1F5F9; color: #475569; }
+        .dlg-btn.ghost:hover { background: #E2E8F0; }
+        .dlg-btn.primary { background: #4F46E5; color: #fff; box-shadow: 0 6px 16px -6px rgba(79,70,229,.6); }
+        .dlg-btn.primary:hover { background: #4338CA; }
+        .dlg-btn.danger { background: #E11D48; color: #fff; box-shadow: 0 6px 16px -6px rgba(225,29,72,.55); }
+        .dlg-btn.danger:hover { background: #BE123C; }
+
+        /* ===== Dropdown kustom (pengganti tampilan <select> bawaan) ===== */
+        .cs-wrap { position: relative; display: block; width: 100%; }
+        .cs-native { position: absolute !important; opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; left: 0; bottom: 0; }
+        .cs-btn { display: flex !important; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+        .cs-btn:hover { border-color: #A5B4FC; }
+        .cs-btn[aria-expanded="true"] { border-color: #4F46E5; box-shadow: 0 0 0 4px rgba(79,70,229,.12); }
+        .cs-btn:focus-visible { border-color: #4F46E5; box-shadow: 0 0 0 4px rgba(79,70,229,.12); outline: none; }
+        .cs-label { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cs-chev { width: 16px; height: 16px; color: #94A3B8; flex-shrink: 0; transition: transform .2s ease; }
+        .cs-btn[aria-expanded="true"] .cs-chev { transform: rotate(180deg); color: #4F46E5; }
+        .cs-menu { position: fixed; z-index: 2100; background: #fff; border: 1px solid #E2E8F0; border-radius: 16px; padding: 6px; box-shadow: 0 18px 40px -10px rgba(15,23,42,.25), 0 4px 10px -4px rgba(15,23,42,.08); max-height: 240px; overflow-y: auto; opacity: 0; transform: translateY(-4px); transition: opacity .14s ease, transform .14s ease; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .cs-menu.show { opacity: 1; transform: none; }
+        .cs-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; }
+        .cs-opt .cs-opt-l { display: flex; align-items: center; gap: 9px; min-width: 0; }
+        .cs-opt.active, .cs-opt:hover { background: #F1F5F9; }
+        .cs-opt[aria-selected="true"] { background: #EEF2FF; color: #4F46E5; font-weight: 700; }
+        .cs-opt svg { width: 15px; height: 15px; flex-shrink: 0; }
+        .cs-dot { width: 8px; height: 8px; border-radius: 9999px; flex-shrink: 0; }
+        @media (max-width: 767px) { .cs-btn, .cs-opt { font-size: 14px !important; } }
+        @media (prefers-reduced-motion: reduce) { .dlg-overlay, .dlg-card, .cs-menu, .cs-chev { transition: none; } }
+    </style>
+    <script>
+    (function () {
+        'use strict';
+        /* ---------- Dialog ---------- */
+        const ICON_Q = '<i class="fa-solid fa-circle-question"></i>';
+        const ICON_W = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        const ICON_K = '<i class="fa-solid fa-key"></i>';
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+        function openDialog(o) {
+            return new Promise(resolve => {
+                const prevFocus = document.activeElement;
+                const ov = document.createElement('div');
+                ov.className = 'dlg-overlay';
+                ov.innerHTML =
+                    '<div class="dlg-card" role="dialog" aria-modal="true">' +
+                    '<div class="dlg-icon' + (o.danger ? ' danger' : '') + '">' + o.icon + '</div>' +
+                    (o.title ? '<div class="dlg-title">' + esc(o.title) + '</div>' : '') +
+                    (o.message ? '<div class="dlg-msg">' + esc(o.message) + '</div>' : '') +
+                    (o.input ? '<input class="dlg-input" type="text" autocomplete="off"' + (o.numeric ? ' inputmode="numeric"' : '') + (o.maxlength ? ' maxlength="' + o.maxlength + '"' : '') + ' placeholder="' + esc(o.placeholder || '') + '">' : '') +
+                    '<div class="dlg-actions">' +
+                    (o.cancel === false ? '' : '<button type="button" class="dlg-btn ghost" data-r="cancel">' + esc(o.cancelText || 'Batal') + '</button>') +
+                    '<button type="button" class="dlg-btn ' + (o.danger ? 'danger' : 'primary') + '" data-r="ok">' + esc(o.okText || 'OK') + '</button>' +
+                    '</div></div>';
+                document.body.appendChild(ov);
+                const input = ov.querySelector('.dlg-input');
+                if (input && o.numeric) input.addEventListener('input', () => { input.value = input.value.replace(/\D/g, ''); });
+                requestAnimationFrame(() => { ov.classList.add('show'); (input || ov.querySelector('[data-r="ok"]')).focus(); });
+
+                function close(ok) {
+                    document.removeEventListener('keydown', onKey, true);
+                    ov.classList.remove('show');
+                    setTimeout(() => ov.remove(), 180);
+                    try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch (e) {}
+                    if (o.input) resolve(ok ? input.value : null); else resolve(!!ok);
+                }
+                function onKey(e) {
+                    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(false); }
+                    else if (e.key === 'Enter' && (!document.activeElement || document.activeElement.dataset.r !== 'cancel')) { e.preventDefault(); e.stopPropagation(); close(true); }
+                }
+                document.addEventListener('keydown', onKey, true);
+                ov.addEventListener('mousedown', e => { if (e.target === ov && o.cancel !== false) close(false); });
+                ov.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => close(b.dataset.r === 'ok')));
+            });
+        }
+        window.appConfirm = (message, opts) => openDialog(Object.assign({ message, icon: (opts && opts.danger) ? ICON_W : ICON_Q, okText: 'Ya, lanjut' }, opts));
+        window.appPrompt = (message, opts) => openDialog(Object.assign({ message, input: true, icon: ICON_K, okText: 'Simpan' }, opts));
+        window.appAlert = (message, opts) => openDialog(Object.assign({ message, icon: ICON_Q, cancel: false, okText: 'Mengerti' }, opts));
+        window.alert = msg => { appAlert(msg); };
+
+        /* ---------- Dropdown ---------- */
+        const CHEV = '<svg class="cs-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>';
+        const CHECK = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
+        const DOTS = { Tinggi: '#F43F5E', Sedang: '#F59E0B', Rendah: '#10B981' };
+        let openMenu = null;
+
+        function closeMenu() {
+            if (!openMenu) return;
+            const { menu, btn } = openMenu; openMenu = null;
+            btn.setAttribute('aria-expanded', 'false');
+            menu.classList.remove('show');
+            setTimeout(() => menu.remove(), 140);
+        }
+        document.addEventListener('mousedown', e => { if (openMenu && !openMenu.menu.contains(e.target) && !openMenu.btn.contains(e.target)) closeMenu(); });
+        window.addEventListener('resize', closeMenu);
+        window.addEventListener('scroll', e => { if (openMenu && !openMenu.menu.contains(e.target)) closeMenu(); }, true);
+
+        function enhance(sel) {
+            if (sel.dataset.cs) return;
+            sel.dataset.cs = '1';
+            const wrap = document.createElement('div'); wrap.className = 'cs-wrap';
+            sel.parentNode.insertBefore(wrap, sel);
+            wrap.appendChild(sel);
+            sel.classList.add('cs-native'); sel.tabIndex = -1; sel.setAttribute('aria-hidden', 'true');
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = sel.className.replace('cs-native', '').replace(/\bw-full\b/, '') + ' cs-btn';
+            btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
+            wrap.appendChild(btn);
+
+            const dotFor = o => (sel.id === 'todoPriority' && DOTS[o.value]) ? '<span class="cs-dot" style="background:' + DOTS[o.value] + '"></span>' : '';
+            function paint() {
+                const o = sel.options[sel.selectedIndex];
+                btn.innerHTML = '<span class="cs-label">' + (o ? dotFor(o) + esc(o.text) : '') + '</span>' + CHEV;
+            }
+            paint();
+
+            function openList() {
+                closeMenu();
+                const menu = document.createElement('div'); menu.className = 'cs-menu'; menu.setAttribute('role', 'listbox');
+                Array.from(sel.options).forEach((o, i) => {
+                    const it = document.createElement('div');
+                    it.className = 'cs-opt'; it.setAttribute('role', 'option'); it.dataset.i = i;
+                    it.setAttribute('aria-selected', i === sel.selectedIndex ? 'true' : 'false');
+                    it.innerHTML = '<span class="cs-opt-l">' + dotFor(o) + '<span>' + esc(o.text) + '</span></span>' + (i === sel.selectedIndex ? CHECK : '');
+                    it.addEventListener('mouseenter', () => { menu.querySelectorAll('.active').forEach(a => a.classList.remove('active')); it.classList.add('active'); });
+                    it.addEventListener('click', () => pick(i));
+                    menu.appendChild(it);
+                });
+                document.body.appendChild(menu);
+                const r = btn.getBoundingClientRect();
+                menu.style.minWidth = r.width + 'px'; menu.style.left = r.left + 'px';
+                const h = Math.min(menu.scrollHeight, 240);
+                const below = window.innerHeight - r.bottom;
+                if (below < h + 12 && r.top > below) { menu.style.bottom = (window.innerHeight - r.top + 6) + 'px'; } else { menu.style.top = (r.bottom + 6) + 'px'; }
+                requestAnimationFrame(() => menu.classList.add('show'));
+                btn.setAttribute('aria-expanded', 'true');
+                openMenu = { menu, btn };
+                const cur = menu.querySelector('[aria-selected="true"]'); if (cur) { cur.classList.add('active'); cur.scrollIntoView({ block: 'nearest' }); }
+            }
+            function pick(i) {
+                if (sel.selectedIndex !== i) { sel.selectedIndex = i; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+                paint(); closeMenu(); btn.focus();
+            }
+            function move(d) {
+                if (!openMenu) return openList();
+                const items = Array.from(openMenu.menu.children);
+                let idx = items.findIndex(x => x.classList.contains('active'));
+                idx = Math.max(0, Math.min(items.length - 1, (idx < 0 ? sel.selectedIndex : idx) + d));
+                items.forEach(x => x.classList.remove('active')); items[idx].classList.add('active'); items[idx].scrollIntoView({ block: 'nearest' });
+            }
+            btn.addEventListener('click', () => (openMenu && openMenu.btn === btn) ? closeMenu() : openList());
+            btn.addEventListener('keydown', e => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+                else if (e.key === 'Escape' && openMenu) { e.stopPropagation(); closeMenu(); }
+                else if ((e.key === 'Enter' || e.key === ' ') && openMenu) { e.preventDefault(); const a = openMenu.menu.querySelector('.active'); if (a) pick(+a.dataset.i); else closeMenu(); }
+            });
+
+            // sinkron bila opsi / nilai diubah lewat kode
+            new MutationObserver(paint).observe(sel, { childList: true, subtree: true, characterData: true });
+            const proto = Object.getPrototypeOf(sel);
+            ['value', 'selectedIndex'].forEach(k => {
+                const d = Object.getOwnPropertyDescriptor(proto, k) || Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, k);
+                if (d && d.set) Object.defineProperty(sel, k, { configurable: true, get() { return d.get.call(this); }, set(v) { d.set.call(this, v); paint(); } });
+            });
+            if (sel.form) sel.form.addEventListener('reset', () => setTimeout(paint, 0));
+            const lab = sel.id && document.querySelector('label[for="' + sel.id + '"]');
+            if (lab) lab.addEventListener('click', e => { e.preventDefault(); btn.focus(); });
+        }
+        function enhanceAll() { document.querySelectorAll('select:not([data-cs])').forEach(enhance); }
+        enhanceAll();
+        document.addEventListener('DOMContentLoaded', enhanceAll);
+        new MutationObserver(enhanceAll).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+    </script>
 
     <!-- APPLICATION LOGIC JS -->
     <script>
@@ -1296,13 +1488,13 @@
             try { localStorage.setItem('space_iso_blocks', JSON.stringify(blocks)); } catch (e) {}
             renderSpaceChatList(); renderSpaceMessages(true); updateChatHeader(); renderStories(); renderRooms(); renderBlockedList();
         }
-        function toggleBlock(uid) {
+        async function toggleBlock(uid) {
             const u = teamUsers.find(x => x.id === uid);
             if (!u || uid === activeUserId) return;
             const list = myBlocks();
             if (list.includes(uid)) { blocks[activeUserId] = list.filter(i => i !== uid); showToast(`${u.name} dibuka blokirnya`); }
             else {
-                if (!confirm(`Blokir ${u.name}? Pesan, cerita, dan room-nya akan disembunyikan dari Anda.`)) return;
+                if (!(await appConfirm(`Pesan, cerita, dan room milik ${u.name} akan disembunyikan dari Anda.`, {title:`Blokir ${u.name}?`, okText:'Blokir', danger:true}))) return;
                 blocks[activeUserId] = [...list, uid]; showToast(`${u.name} diblokir`);
             }
             refreshAfterBlock();
@@ -1352,13 +1544,13 @@
             window.onYouTubeIframeAPIReady = cb;
             if (!document.getElementById('ytapi')) { const t = document.createElement('script'); t.id = 'ytapi'; t.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(t); }
         }
-        function openRoom(id, ok) {
+        async function openRoom(id, ok) {
             const r = getRoom(id);
             if (!r) return;
             const isHost = r.hostId === activeUserId;
             if (isBlocked(r.hostId)) { showToast('Host room ini Anda blokir'); return; }
             if (r.pin && !isHost && !r.members.includes(activeUserId) && !ok) {
-                if (prompt('Room ini dikunci. Masukkan PIN 4 angka:') !== r.pin) { showToast('PIN salah'); return; }
+                if ((await appPrompt('Masukkan PIN 4 angka untuk masuk.', {title:'Room terkunci', okText:'Masuk', placeholder:'0000', numeric:true, maxlength:4})) !== r.pin) { showToast('PIN salah'); return; }
             }
             if (!r.members.includes(activeUserId)) { r.members.push(activeUserId); saveRooms(id, ['members']); }
             openRoomId = id;
@@ -1407,7 +1599,7 @@
             const r = getRoom(openRoomId);
             if (!r) return;
             const isHost = r.hostId === activeUserId;
-            const names = r.members.filter(id => !isBlocked(id)).map(id => { const u = teamUsers.find(x => x.id === id); return u ? `<span class="text-[11px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">${esc(u.name.split(' ')[0])}${id === r.hostId ? ' 👑' : ''}</span>` : ''; }).join('');
+            const names = r.members.filter(id => !isBlocked(id)).map(id => { const u = teamUsers.find(x => x.id === id); return u ? `<span class="text-[11px] font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">${esc(u.name.split(' ')[0])}${id === r.hostId ? ' (Host)' : ''}</span>` : ''; }).join('');
             document.getElementById('roomPanel').innerHTML = `
                 <div class="flex items-start justify-between gap-2"><div class="min-w-0"><h3 class="font-bold text-slate-900 truncate">${esc(r.title)}</h3>
                 <p class="text-[11px] text-slate-400 font-semibold">${r.type === 'music' ? 'Room musik' : 'Nonton bareng'} · ${isHost ? 'Anda host, hanya Anda yang mengontrol putar/jeda' : 'Mengikuti kontrol host'}</p></div>
@@ -1436,11 +1628,11 @@
             ytApplying = true; ytPlayer.loadVideoById(r.videoId, 0); setTimeout(() => { ytApplying = false; }, 1200);
             saveRooms(); renderRoomPanel();
         }
-        function setRoomPin() {
+        async function setRoomPin() {
             const r = getRoom(openRoomId);
             if (r.pin) { r.pin = null; showToast('Room dibuka untuk semua'); }
             else {
-                const p = prompt('Buat PIN 4 angka untuk mengunci room:');
+                const p = await appPrompt('Buat PIN 4 angka untuk mengunci room ini.', {title:'Kunci room', okText:'Kunci', placeholder:'0000', numeric:true, maxlength:4});
                 if (!/^\d{4}$/.test(p || '')) { showToast('PIN harus 4 angka'); return; }
                 r.pin = p; showToast('Room dikunci. Anggota yang sudah di dalam tetap bisa menonton.');
             }
@@ -1457,8 +1649,8 @@
             document.getElementById('roomModal').classList.add('hidden');
             renderRooms();
         }
-        function closeRoom() {
-            if (!confirm('Tutup room untuk semua orang?')) return;
+        async function closeRoom() {
+            if (!(await appConfirm('Room akan ditutup dan semua anggota akan keluar.', {title:'Tutup room?', okText:'Tutup room', danger:true}))) return;
             const rid = openRoomId; rooms = rooms.filter(r => r.id !== rid); sbDelete(rid); closeRoomModal();
         }
         window.addEventListener('storage', e => {
@@ -1519,9 +1711,9 @@
             u.devices = u.devices.filter(d => d.id !== id);
             saveAllState(); renderDevices(); showToast('Perangkat dikeluarkan');
         }
-        function cloneAccount() {
+        async function cloneAccount() {
             const u = getActiveUser();
-            if (!confirm(`Buat klon akun dari ${u.name}?`)) return;
+            if (!(await appConfirm('Akun baru akan dibuat dengan data yang sama.', {title:`Klon akun ${u.name}?`, okText:'Buat klon'}))) return;
             teamUsers.push({ ...u, id: 'user_' + Date.now(), name: u.name + ' (Klon)', email: 'klon.' + u.email, status: 'offline', lastSeen: null, joinedAt: Date.now(), devices: [] });
             saveAllState(); renderUsers(); renderSpaceChatList(); updateChatHeader();
             showToast('Akun klon dibuat. Pindah lewat menu ganti akun.');
@@ -1679,6 +1871,7 @@
         async function sendChatPhoto(inp) {
             const f = inp.files[0]; inp.value = '';
             if (!f || !f.type.startsWith('image/')) { showToast('Pilih file foto'); return; }
+            if (window.fbMod && fbMod.isMuted(activeUserId)) { showToast('Anda sedang dibungkam oleh moderator'); return; }
             if (!(window.fbSync && fbSync.ready)) { showToast('Firebase belum terhubung, foto belum bisa dikirim'); return; }
             if (spaceActiveTarget !== 'general' && isBlocked(spaceActiveTarget)) { showToast('Anda memblokir kontak ini. Buka blokir untuk mengirim.'); return; }
             let data;
@@ -1741,7 +1934,8 @@
         // Setelah login Google berhasil, panggil:
         //     onLoginSuccess({ name: user.displayName, email: user.email });
         function loginWithGoogle() {
-            showToast('Login Google belum dihubungkan');
+            if (window.fbGoogleLogin) window.fbGoogleLogin();
+            else showToast('Firebase belum siap, periksa koneksi internet lalu muat ulang halaman');
         }
 
         // Dipanggil setelah autentikasi berhasil: cocokkan akun berdasarkan email, atau buat akun baru
@@ -1762,6 +1956,9 @@
             finishLogin(u.id);
         }
         function finishLogin(id) {
+            const why = window.fbMod && fbMod.blockReason(id);
+            if (why) { showToast(why); return; }
+            localStorage.setItem('space_login_at', String(Date.now()));
             activeUserId = id; needsAccount = false;
             localStorage.setItem('space_iso_logged_in', '1');
             const me = getActiveUser(); if (me) me.status = 'online';
@@ -1770,7 +1967,7 @@
             startApp();
         }
         async function logout() {
-            if (!confirm('Keluar dari akun ini?')) return;
+            if (!(await appConfirm('Anda bisa masuk kembali kapan saja.', {title:'Keluar dari akun?', okText:'Keluar', danger:true}))) return;
             if (window.fbSync && fbSync.goOffline) await fbSync.goOffline();
             localStorage.removeItem('space_iso_logged_in');
             // jika memakai Firebase Auth, panggil signOut(auth) Anda di sini sebelum reload
@@ -1998,7 +2195,7 @@
             const buildPreview = (chatId, emptyText) => {
                 const last = spaceChatMessages.filter(m => belongsToChat(m, chatId)).slice(-1)[0];
                 if (!last) return { text: emptyText, time: '', st: null };
-                const text = last.text || (last.hasMedia ? '📷 Foto' : (last.attachment ? '📎 ' + last.attachment : ''));
+                const text = last.text || (last.hasMedia ? 'Foto' : (last.attachment ? last.attachment : ''));
                 return { text, time: last.time, st: last.senderId === activeUserId ? getMsgStatus(last).state : null };
             };
 
@@ -2022,7 +2219,7 @@
                 });
             }
 
-            chats.forEach(c => { if (c.user && isBlocked(c.id)) { c.lastMsg = '🚫 Diblokir'; c.time = ''; c.st = null; c.unread = 0; } });
+            chats.forEach(c => { if (c.user && isBlocked(c.id)) { c.lastMsg = 'Diblokir'; c.time = ''; c.st = null; c.unread = 0; } });
 
             if (searchVal) {
                 chats = chats.filter(c => c.name.toLowerCase().includes(searchVal) || c.lastMsg.toLowerCase().includes(searchVal));
@@ -2138,6 +2335,7 @@
             const text = input ? input.value.trim() : '';
 
             if (!text && !attachment) return;
+            if (window.fbMod && fbMod.isMuted(activeUserId)) { showToast('Anda sedang dibungkam oleh moderator'); return; }
             if (spaceActiveTarget !== 'general' && isBlocked(spaceActiveTarget)) { showToast('Anda memblokir kontak ini. Buka blokir untuk mengirim pesan.'); return; }
 
             const now = Date.now();
@@ -2583,7 +2781,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
         import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
         import { getDatabase, ref, get, set, update, remove, onChildAdded, onChildChanged, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
         import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -2745,16 +2943,17 @@
                 snap.docChanges().forEach(ch => {
                     const id = ch.doc.id;
                     if (ch.type === 'removed') {
-                        delete cache.users[id];
+                        delete cache.users[id]; delete mod.state[id];
                         const i = teamUsers.findIndex(x => String(x.id) === id);
                         if (i >= 0) teamUsers.splice(i, 1);
                         pend.users = true; return;
                     }
-                    const v = ch.doc.data(), nf = flat({ ...v, id });
+                    const v = ch.doc.data(), nf = flat(pick({ ...v, id }, USER_FIELDS));
+                    modNote(id, v);
                     if (same(cache.users[id], nf)) return;
                     cache.users[id] = nf; mergeRemote('users', id, { ...v }); pend.users = true;
                 });
-                sched();
+                sched(); mod.enforce();
             }, e => toast('Firestore: ' + e.message));
         }
 
@@ -2781,7 +2980,7 @@
         sync.goOffline = async () => {
             clearInterval(hb);
             if (desired) { try { await Promise.race([setDoc(doc(fs, 'presence', desired), { online: false, lastSeen: serverTimestamp() }), new Promise(r => setTimeout(r, 1500))]); } catch (e) {} }
-            desired = null;
+            desired = null; localStorage.removeItem('space_login_at');
         };
         window.addEventListener('pagehide', () => beat(false));
         window.addEventListener('pageshow', e => { if (e.persisted) beat(true); });
@@ -2790,10 +2989,122 @@
         sync.putMedia = (id, data) => set(ref(db, 'media/' + id), data);
         sync.getMedia = async id => (await get(ref(db, 'media/' + id))).val();
 
+
+        // ---- moderasi: perintah dari panel moderator (Firestore: system/config, users/{id}.banned|muted|expiresAt) ----
+        const APP_VERSION = '1.0.0';
+        const mod = window.fbMod = { state: {}, config: {} };
+        if (!localStorage.getItem('space_login_at')) localStorage.setItem('space_login_at', String(Date.now()));
+        function modNote(id, v) { mod.state[id] = { banned: v.banned === true, muted: v.muted === true, expiresAt: v.expiresAt || null }; }
+        mod.blockReason = id => {
+            const s = mod.state[id]; if (!s) return null;
+            if (s.banned) return 'Akun Anda diblokir oleh moderator.';
+            if (s.expiresAt && Date.parse(s.expiresAt) < Date.now()) return 'Masa aktif akun Anda telah berakhir.';
+            return null;
+        };
+        mod.isMuted = id => !!(mod.state[id] && mod.state[id].muted);
+        const verNum = v => String(v || '0').split('.').map(n => parseInt(n) || 0);
+        const verNewer = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < 4; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+        const mEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const gates = {};
+        function gate(key, html, z, onBtn) {
+            if (!html) { if (gates[key]) { gates[key].el.remove(); delete gates[key]; } return; }
+            if (gates[key] && gates[key].html === html) return;
+            if (gates[key]) gates[key].el.remove();
+            const el = document.createElement('div');
+            el.className = 'fixed inset-0 flex items-center justify-center p-6 bg-white/95 backdrop-blur-sm';
+            el.style.zIndex = z; el.innerHTML = html;
+            document.body.appendChild(el); gates[key] = { el, html };
+            const b = el.querySelector('[data-act]'); if (b && onBtn) b.addEventListener('click', onBtn);
+        }
+        const gateCard = (icon, title, msg, btn) => '<div class="max-w-sm w-full text-center"><div class="mx-auto w-14 h-14 rounded-2xl bg-space-50 text-space-600 flex items-center justify-center text-xl mb-4"><i class="fa-solid ' + icon + '"></i></div><h2 class="text-lg font-extrabold text-slate-800">' + mEsc(title) + '</h2><p class="text-sm text-slate-500 font-medium mt-2 leading-relaxed whitespace-pre-line">' + mEsc(msg) + '</p>' + (btn ? '<button data-act class="mt-6 w-full bg-space-600 hover:bg-space-700 text-white font-bold py-3 rounded-xl text-sm">' + mEsc(btn) + '</button>' : '') + '</div>';
+        async function forceOut() {
+            try { await sync.goOffline(); } catch (e) {}
+            localStorage.removeItem('space_iso_logged_in'); localStorage.removeItem('space_login_at');
+            location.reload();
+        }
+        function banner(html, tone, key) {
+            let el = document.getElementById('modBanner');
+            if (!html || sessionStorage.getItem('mb_' + key)) { if (el) el.remove(); return; }
+            const tones = { info: 'bg-indigo-50 text-indigo-800 border-indigo-200', warning: 'bg-amber-50 text-amber-800 border-amber-200', danger: 'bg-rose-50 text-rose-800 border-rose-200' };
+            if (!el) { el = document.createElement('div'); el.id = 'modBanner'; document.body.appendChild(el); }
+            if (el.dataset.key === key) return;
+            el.dataset.key = key;
+            el.className = 'fixed top-3 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-xl z-[120] border rounded-2xl shadow-lg px-4 py-3 text-[13px] font-semibold flex items-start gap-3 ' + (tones[tone] || tones.info);
+            el.innerHTML = '<i class="fa-solid fa-bullhorn mt-0.5"></i><div class="flex-1 min-w-0 break-words">' + html + '</div><button aria-label="Tutup" class="shrink-0 opacity-60 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>';
+            el.querySelector('button').onclick = () => { sessionStorage.setItem('mb_' + key, '1'); el.remove(); };
+        }
+        mod.applyFlags = function () {
+            const fl = (mod.config && mod.config.flags) || {};
+            document.querySelectorAll('[data-flag]').forEach(el => { const d = fl[el.dataset.flag] === false ? 'none' : ''; if (el.style.display !== d) el.style.display = d; });
+            window.fbFlags = fl; window.isFeatureOn = n => fl[n] !== false;
+        };
+        mod.enforce = function () {
+            const c = mod.config || {};
+            // maintenance
+            gate('maint', c.maintenance === true ? gateCard('fa-screwdriver-wrench', 'Sedang dalam perawatan', c.maintenanceMessage || 'Kami sedang melakukan perawatan. Silakan kembali beberapa saat lagi.') : '', 3000);
+            // akun diblokir / kedaluwarsa (hanya jika sedang login)
+            const loggedIn = typeof needsAccount !== 'undefined' && !needsAccount && localStorage.getItem('space_iso_logged_in') === '1';
+            const why = loggedIn ? mod.blockReason(activeUserId) : null;
+            gate('ban', why ? gateCard('fa-ban', 'Akses ditutup', why, 'Keluar') : '', 3100, forceOut);
+            // versi baru
+            const newer = c.version && verNewer(c.version, APP_VERSION);
+            const go = () => { if (c.updateUrl && /^https:\/\//i.test(c.updateUrl)) location.href = c.updateUrl; else location.reload(); };
+            gate('upd', newer && c.forceUpdate === true ? gateCard('fa-cloud-arrow-down', 'Pembaruan wajib', 'Versi ' + c.version + ' tersedia.' + (c.changelog ? '\n' + c.changelog : ''), 'Perbarui sekarang') : '', 2900, go);
+            // pengumuman / info versi
+            if (c.announcement) banner(mEsc(c.announcement), c.announcementType, 'a' + c.announcement);
+            else if (newer && c.forceUpdate !== true) banner('Versi ' + mEsc(c.version) + ' tersedia. Muat ulang halaman untuk memperbarui.', 'info', 'v' + c.version);
+            else banner('', '', '');
+            // feature flag
+            mod.applyFlags();
+            // paksa logout
+            const t = Date.parse(c.forceLogoutAt || ''), at = Number(localStorage.getItem('space_login_at')) || 0;
+            if (loggedIn && t && at && t > at) forceOut();
+        };
+        function listenConfig() {
+            onSnapshot(doc(fs, 'system', 'config'), snap => { mod.config = snap.exists() ? snap.data() : {}; mod.enforce(); },
+                e => console.warn('system/config: ' + e.message));
+        }
+        new MutationObserver(() => mod.applyFlags()).observe(document.body, { childList: true, subtree: true });
+
+
+        // ---- login Google ----
+        const gLabel = txt => { const l = document.getElementById('loginGoogleLabel'); if (l) l.innerText = txt; };
+        const gBtn = on => { const b = document.getElementById('loginGoogleBtn'); if (b) b.disabled = !on; };
+        const gErr = {
+            'auth/operation-not-allowed': 'Login Google belum diaktifkan: Firebase Console > Authentication > Sign-in method > Google',
+            'auth/unauthorized-domain': 'Domain ini belum diizinkan: Firebase Console > Authentication > Settings > Authorized domains, tambahkan ' + location.hostname,
+            'auth/popup-closed-by-user': 'Login dibatalkan',
+            'auth/cancelled-popup-request': 'Login dibatalkan',
+            'auth/network-request-failed': 'Koneksi internet bermasalah',
+            'auth/account-exists-with-different-credential': 'Email ini sudah terdaftar dengan cara masuk lain'
+        };
+        const gDone = u => window.onLoginSuccess({ name: u.displayName, email: u.email });
+        window.fbGoogleLogin = async function () {
+            if (location.protocol !== 'http:' && location.protocol !== 'https:') { toast('Buka web lewat alamat http/https atau localhost, login Google tidak jalan dari file langsung'); return; }
+            gBtn(false); gLabel('Membuka Google...');
+            const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            try {
+                const r = await signInWithPopup(auth, provider);
+                gBtn(true); gLabel('Masuk dengan Google');
+                await gDone(r.user);
+            } catch (e) {
+                console.warn(e);
+                if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+                    gLabel('Mengalihkan ke Google...');
+                    try { await signInWithRedirect(auth, provider); return; } catch (e2) { e = e2; }
+                }
+                gBtn(true); gLabel('Masuk dengan Google');
+                toast(gErr[e.code] || ('Login Google gagal: ' + (e.message || e.code)));
+            }
+        };
+        getRedirectResult(auth).then(r => { if (r && r.user) gDone(r.user); }).catch(e => { console.warn(e); if (gErr[e.code]) toast(gErr[e.code]); });
+
         // ---- mulai ----
         (async function init() {
             try { await withTimeout(signInAnonymously(auth), 10000); }
             catch (e) { toast('Firebase Auth gagal: aktifkan "Anonymous" di Authentication > Sign-in method'); console.warn(e); }
+            listenConfig();
             try {
                 const lim = Date.now() - STORY_TTL;
                 for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1);
@@ -2804,7 +3115,7 @@
                     if (['u1', 'u2', 'u3', 'u4'].includes(d.id) && /@company\.com$/.test(v.email || '')) {
                         demo.add(d.id); deleteDoc(d.ref).catch(() => {}); deleteDoc(doc(fs, 'presence', d.id)).catch(() => {}); return;
                     }
-                    cache.users[d.id] = flat({ ...v, id: d.id });
+                    cache.users[d.id] = flat(pick({ ...v, id: d.id }, USER_FIELDS)); modNote(d.id, v);
                     mergeRemote('users', d.id, { ...v });
                 });
                 for (const kind of Object.keys(KINDS)) {
@@ -2819,7 +3130,7 @@
                     }
                 }
             } catch (e) { toast('Firebase: ' + e.message); console.warn(e); return; }
-            sync.ready = true;
+            sync.ready = true; mod.enforce();
             Object.keys(KINDS).filter(k => !KINDS[k].fs).forEach(listen);
             listenUsers(); listenPresence();
             if (!needsAccount && teamUsers.some(u => u.id === activeUserId)) sync.setActive(activeUserId);
