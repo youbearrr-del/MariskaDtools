@@ -1265,7 +1265,7 @@
                 if (f.type.startsWith('image/')) {
                     storyDraft = { type: 'photo', media: await resizeImage(f, 900, 0.75), bg: 0 };
                 } else if (f.type.startsWith('video/')) {
-                    if (f.size > 2.5 * 1024 * 1024) { showToast('Video maksimal 2,5 MB (±10 detik)'); return; }
+                    if (f.size > 600 * 1024) { showToast('Video maksimal 600 KB (klip pendek ±3 detik). Pakai foto atau teks untuk yang lebih besar'); return; }
                     const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
                     storyDraft = { type: 'video', media: data, bg: 0 };
                 } else { showToast('Pilih file foto atau video'); return; }
@@ -1284,6 +1284,7 @@
         function postStory() {
             const d = storyDraft, text = document.getElementById('storyText').value.trim();
             if (!d.type || (d.type !== 'text' && !d.media) || (d.type === 'text' && !text)) { showToast('Isi cerita dulu: foto, video, atau tulisan'); return; }
+            if ((d.media || '').length > 900000) { showToast('File cerita terlalu besar. Pilih yang lebih kecil.'); return; }
             stories.push({ id: 's_' + Date.now(), userId: activeUserId, type: d.type, media: d.media, text: d.type === 'text' ? text : '', bg: d.bg, caption: document.getElementById('storyCaption').value.trim(), ts: Date.now(), viewedBy: [] });
             if (!saveStories()) { stories.pop(); showToast('Penyimpanan penuh. Coba file yang lebih kecil.'); return; }
             document.getElementById('storyComposeModal').classList.add('hidden');
@@ -1875,7 +1876,7 @@
             const f = inp.files[0]; inp.value = '';
             if (!f || !f.type.startsWith('image/')) { showToast('Pilih file foto'); return; }
             if (window.fbMod && fbMod.isMuted(activeUserId)) { showToast('Anda sedang dibungkam oleh moderator'); return; }
-            if (!(window.fbSync && fbSync.ready)) { showToast('Firebase belum terhubung, foto belum bisa dikirim'); return; }
+            if (!(window.fbSync && fbSync.ready && fbSync.status.chat)) { showToast('Chat cloud belum terhubung, foto belum bisa dikirim. Tekan Cek koneksi di halaman Tim'); return; }
             if (spaceActiveTarget !== 'general' && isBlocked(spaceActiveTarget)) { showToast('Anda memblokir kontak ini. Buka blokir untuk mengirim.'); return; }
             let data;
             try { data = await resizeImage(f, 1000, 0.75); } catch (e) { showToast('Foto tidak bisa dibaca'); return; }
@@ -2812,19 +2813,17 @@
         }
     </script>
 
-    <!-- FIREBASE: pengguna, status online, chat, media chat & cerita (Realtime Database, bukan Firestore) -->
+    <!-- FIREBASE: pengguna, status online, chat, media chat & cerita (Firestore) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
         import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, remove, onChildAdded, onChildChanged, onChildRemoved, query as rtQuery, limitToFirst } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
-        import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, serverTimestamp, query as fsQuery, limit as fsLimit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCrjc93q2BDW8654WzktcpxWK-JalUEYhU",
             authDomain: "mariskaratnadewi.firebaseapp.com",
-            // Salin URL persis dari Firebase Console > Realtime Database. Jika database dibuat di region
-            // selain AS, bentuknya: https://mariskaratnadewi-default-rtdb.<region>.firebasedatabase.app
+            // Realtime Database tidak lagi dipakai; baris databaseURL di bawah boleh dibiarkan.
             databaseURL: "https://mariskaratnadewi-default-rtdb.firebaseio.com",
             projectId: "mariskaratnadewi",
             storageBucket: "mariskaratnadewi.firebasestorage.app",
@@ -2835,7 +2834,7 @@
 
         const app = initializeApp(firebaseConfig);
         isSupported().then(ok => { if (ok) getAnalytics(app); }).catch(() => {});
-        const db = getDatabase(app), fs = getFirestore(app), auth = getAuth(app); // db = Realtime Database, fs = Firestore
+        const fs = getFirestore(app), auth = getAuth(app); // semua data (anggota, chat, cerita, foto) disimpan di Firestore
         const toast = m => { if (window.showToast) window.showToast(m); else console.warn(m); };
 
         // ---- util: ratakan objek jadi path/leaf supaya hanya bagian yang berubah yang ditulis ----
@@ -2856,18 +2855,18 @@
         };
         const same = (a, b) => { if (!a || !b) return false; const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every(k => a[k] === b[k]); };
         const pick = (o, ks) => { const r = {}; ks.forEach(k => { if (o[k] !== undefined && o[k] !== null) r[k] = o[k]; }); return r; };
-        const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('tidak merespons, cek databaseURL, database Firestore, dan rules')), ms))]);
+        const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('tidak merespons, cek koneksi internet, database Firestore, dan rules')), ms))]);
 
         // status / lastSeen / devices sengaja tidak ikut: status online datang dari /presence
         const USER_FIELDS = ['id', 'name', 'email', 'role', 'color', 'bio', 'photo', 'joinedAt'];
-        // fs:true = disimpan di Firestore; sisanya di Realtime Database
+        // semua jenis data disimpan di Firestore (fs:true)
         const KINDS = {
             users:    { fs: true, list: () => teamUsers },
-            messages: { list: () => spaceChatMessages, wire: m => m },
-            stories:  { list: () => stories,           wire: s => ({ ...s, viewedBy: Object.fromEntries((s.viewedBy || []).map(i => [i, true])) }) }
+            messages: { fs: true, list: () => spaceChatMessages, wire: m => m },
+            stories:  { fs: true, list: () => stories,           wire: s => ({ ...s, viewedBy: Object.fromEntries((s.viewedBy || []).map(i => [i, true])) }) }
         };
         const cache = { users: {}, messages: {}, stories: {} };
-        const sync = window.fbSync = { ready: false, status: { auth: null, users: null, rtdb: null }, errors: {} };
+        const sync = window.fbSync = { ready: false, status: { auth: null, users: null, chat: null }, errors: {} };
         const st = sync.status;
         let resolveReady; sync.whenReady = new Promise(r => { resolveReady = r; });
 
@@ -2892,24 +2891,27 @@
             const lim = Date.now() - STORY_TTL;
             for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1); // cerita > 24 jam
             if (st.users) pushUsers();
-            const ups = {};
-            for (const kind of Object.keys(KINDS)) {
-                if (KINDS[kind].fs || !st.rtdb) continue;
-                const K = KINDS[kind], c = cache[kind], seen = new Set();
-                for (const item of K.list()) {
-                    if (!item || item.id === undefined) continue;
-                    const id = String(item.id); seen.add(id);
-                    const nf = flat(K.wire(item)), of = c[id];
-                    if (!of) ups[`${kind}/${id}`] = nest(nf);
-                    else {
-                        for (const p in nf) if (of[p] !== nf[p]) ups[`${kind}/${id}/${p}`] = nf[p];
-                        for (const p in of) if (!(p in nf)) ups[`${kind}/${id}/${p}`] = null;
-                    }
-                    c[id] = nf;
+            if (st.chat) { pushDocs('messages'); pushDocs('stories'); }
+        }
+
+        // pesan & cerita: satu dokumen Firestore per item, hanya bagian yang berubah yang ditulis
+        function pushDocs(kind) {
+            const K = KINDS[kind], c = cache[kind], seen = new Set(), ops = [];
+            for (const item of K.list()) {
+                if (!item || item.id === undefined) continue;
+                const id = String(item.id); seen.add(id);
+                const nf = flat(K.wire(item)), of = c[id], dr = doc(fs, kind, id);
+                if (!of) ops.push(setDoc(dr, nest(nf)));
+                else {
+                    const ch = {};
+                    for (const k in nf) if (of[k] !== nf[k]) ch[k.replace(/\//g, '.')] = nf[k];
+                    for (const k in of) if (!(k in nf)) ch[k.replace(/\//g, '.')] = deleteField();
+                    if (Object.keys(ch).length) ops.push(updateDoc(dr, ch).catch(e => /not.?found|no document/i.test(String(e.code) + ' ' + String(e.message)) ? setDoc(dr, nest(nf)) : Promise.reject(e)));
                 }
-                for (const id of Object.keys(c)) if (!seen.has(id)) { ups[`${kind}/${id}`] = null; delete c[id]; }
+                c[id] = nf;
             }
-            if (Object.keys(ups).length) update(ref(db), ups).catch(e => toast('Firebase: ' + e.message));
+            for (const id of Object.keys(c)) if (!seen.has(id)) { ops.push(deleteDoc(doc(fs, kind, id))); delete c[id]; }
+            ops.forEach(pr => pr.catch(e => toast('Firestore: ' + fbHint(e))));
         }
 
         function pushUsers() {
@@ -2952,25 +2954,28 @@
             }, 150);
         }
         function listen(kind) {
-            const r = ref(db, kind), c = cache[kind];
-            const apply = snap => {
-                const id = snap.key, v = snap.val();
-                if (v === null || typeof v !== 'object') return;
-                if (kind === 'stories' && (v.ts || 0) < Date.now() - STORY_TTL) return;
-                const nf = flat({ ...v, id });
-                if (same(c[id], nf)) return;
-                const isNew = !c[id];
-                c[id] = nf; mergeRemote(kind, id, { ...v });
-                if (kind === 'messages' && isNew) pend.newMessages.push(id);
-                pend[kind] = true; sched();
-            };
-            onChildAdded(r, apply); onChildChanged(r, apply);
-            onChildRemoved(r, snap => {
-                const id = snap.key; delete c[id];
-                const l = KINDS[kind].list(), i = l.findIndex(x => String(x.id) === id);
-                if (i >= 0) l.splice(i, 1);
-                pend[kind] = true; sched();
-            });
+            const c = cache[kind];
+            onSnapshot(collection(fs, kind), snap => {
+                snap.docChanges().forEach(ch => {
+                    const id = ch.doc.id;
+                    if (ch.type === 'removed') {
+                        delete c[id];
+                        const l = KINDS[kind].list(), i = l.findIndex(x => String(x.id) === id);
+                        if (i >= 0) l.splice(i, 1);
+                        pend[kind] = true; return;
+                    }
+                    const v = ch.doc.data();
+                    if (!v || typeof v !== 'object') return;
+                    if (kind === 'stories' && (v.ts || 0) < Date.now() - STORY_TTL) return;
+                    const nf = flat({ ...v, id });
+                    if (same(c[id], nf)) return;
+                    const isNew = !c[id];
+                    c[id] = nf; mergeRemote(kind, id, { ...v });
+                    if (kind === 'messages' && isNew) pend.newMessages.push(id);
+                    pend[kind] = true;
+                });
+                sched();
+            }, e => toast('Firestore ' + kind + ': ' + fbHint(e)));
         }
 
         // ---- pengguna (Firestore) ----
@@ -3021,9 +3026,13 @@
         window.addEventListener('pagehide', () => beat(false));
         window.addEventListener('pageshow', e => { if (e.persisted) beat(true); });
 
-        // ---- media chat (foto) di Realtime Database, dipisah dari node pesan agar daftar pesan tetap ringan ----
-        sync.putMedia = (id, data) => set(ref(db, 'media/' + id), data);
-        sync.getMedia = async id => (await get(ref(db, 'media/' + id))).val();
+        // ---- media chat (foto) di Firestore, koleksi media, dipisah dari dokumen pesan agar pesan tetap ringan ----
+        sync.putMedia = async (id, data) => {
+            if (typeof data !== 'string' || data.length > 950000) throw new Error('foto terlalu besar untuk disimpan');
+            try { await withTimeout(setDoc(doc(fs, 'media', id), { d: data }), 20000); }
+            catch (e) { throw new Error(fbHint(e)); }
+        };
+        sync.getMedia = async id => { const sn = await getDoc(doc(fs, 'media', id)); return sn.exists() ? sn.data().d : null; };
 
 
         // ---- moderasi: perintah dari panel moderator (Firestore: system/config, users/{id}.banned|muted|expiresAt) ----
@@ -3168,7 +3177,7 @@
             for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1);
             const demo = new Set(); // sisa akun contoh (u1-u4 @company.com) dihapus dari database
 
-            // 1) anggota (Firestore), berdiri sendiri supaya masalah di Realtime Database tidak menghalangi tambah anggota
+            // 1) anggota (Firestore), berdiri sendiri supaya masalah di chat tidak menghalangi tambah anggota
             try {
                 (await withTimeout(getDocs(collection(fs, 'users')), 12000)).forEach(d => {
                     const v = d.data();
@@ -3181,30 +3190,30 @@
                 st.users = true;
             } catch (e) { st.users = false; sync.errors.users = e; toast('Firestore: ' + e.message); console.warn(e); }
 
-            // 2) pesan & cerita (Realtime Database)
+            // 2) pesan & cerita (Firestore)
             try {
-                for (const kind of Object.keys(KINDS)) {
-                    if (KINDS[kind].fs) continue;
-                    const val = (await withTimeout(get(ref(db, kind)), 12000)).val() || {};
-                    for (const [id, v] of Object.entries(val)) {
-                        if (!v || typeof v !== 'object') continue;
-                        if (kind === 'stories' && (v.ts || 0) < lim) { remove(ref(db, 'stories/' + id)); continue; }
-                        if ((kind === 'messages' && (['m1', 'm2', 'm3'].includes(id) || demo.has(v.senderId) || demo.has(v.target))) || (kind === 'stories' && demo.has(v.userId))) { remove(ref(db, kind + '/' + id)); continue; }
+                for (const kind of ['messages', 'stories']) {
+                    const snap = await withTimeout(getDocs(collection(fs, kind)), 12000);
+                    snap.forEach(d => {
+                        const id = d.id, v = d.data();
+                        if (!v || typeof v !== 'object') return;
+                        if (kind === 'stories' && (v.ts || 0) < lim) { deleteDoc(d.ref).catch(() => {}); return; }
+                        if ((kind === 'messages' && (['m1', 'm2', 'm3'].includes(id) || demo.has(v.senderId) || demo.has(v.target))) || (kind === 'stories' && demo.has(v.userId))) { deleteDoc(d.ref).catch(() => {}); return; }
                         cache[kind][id] = flat({ ...v, id });
                         mergeRemote(kind, id, { ...v });
-                    }
+                    });
                 }
-                st.rtdb = true;
-            } catch (e) { st.rtdb = false; sync.errors.rtdb = e; toast('Realtime Database: ' + e.message); console.warn(e); }
+                st.chat = true;
+            } catch (e) { st.chat = false; sync.errors.chat = e; toast('Firestore chat: ' + fbHint(e)); console.warn(e); }
 
-            if (!st.users && !st.rtdb) return;
+            if (!st.users && !st.chat) return;
             sync.ready = true; mod.enforce();
-            if (st.rtdb) Object.keys(KINDS).filter(k => !KINDS[k].fs).forEach(listen);
+            if (st.chat) { listen('messages'); listen('stories'); }
             if (st.users && !usersListening) { usersListening = true; listenUsers(); listenPresence(); }
             if (st.users && !needsAccount && teamUsers.some(u => u.id === activeUserId)) sync.setActive(activeUserId);
             push();
             pend.users = pend.messages = pend.stories = true; sched();
-            toast(st.users && st.rtdb ? 'Terhubung ke Firebase' : 'Firebase terhubung sebagian, tekan Cek koneksi di halaman Tim');
+            toast(st.users && st.chat ? 'Terhubung ke Firebase' : 'Firebase terhubung sebagian, tekan Cek koneksi di halaman Tim');
         })().finally(() => resolveReady());
 
         // ---- diagnosis koneksi: tunjukkan persis layanan Firebase mana yang bermasalah ----
@@ -3214,7 +3223,7 @@
             if (/operation-not-allowed|admin-restricted/i.test(m)) return 'Aktifkan Anonymous di Authentication > Sign-in method.';
             if (/unauthorized-domain/i.test(m)) return 'Tambahkan domain web ini di Authentication > Settings > Authorized domains.';
             if (/not.?found|has not been used|not been enabled|disabled/i.test(m)) return 'Database belum dibuat. Buka Firestore Database lalu klik Create database.';
-            if (/tidak merespons|timeout|unavailable|network/i.test(m)) return 'Tidak ada respons. Periksa koneksi internet, ad-blocker, dan databaseURL.';
+            if (/tidak merespons|timeout|unavailable|network/i.test(m)) return 'Tidak ada respons. Periksa koneksi internet dan ad-blocker.';
             return m.slice(0, 160);
         }
         sync.diagnose = async function () {
@@ -3230,8 +3239,12 @@
                 else await withTimeout(setDoc(doc(fs, 'presence', '_diag'), { online: false, lastSeen: serverTimestamp() }), 8000);
                 add(true, 'Firestore tulis anggota');
             } catch (e) { add(false, 'Firestore tulis anggota', fbHint(e)); }
-            try { await withTimeout(get(rtQuery(ref(db, 'messages'), limitToFirst(1))), 8000); add(true, 'Realtime Database baca pesan'); }
-            catch (e) { add(false, 'Realtime Database baca pesan', fbHint(e)); }
+            try { const s1 = await withTimeout(getDocs(fsQuery(collection(fs, 'messages'), fsLimit(1))), 8000); add(true, 'Firestore baca pesan', s1.size ? 'ada pesan' : 'kosong'); }
+            catch (e) { add(false, 'Firestore baca pesan', fbHint(e)); }
+            try { await withTimeout(getDocs(fsQuery(collection(fs, 'stories'), fsLimit(1))), 8000); add(true, 'Firestore baca cerita'); }
+            catch (e) { add(false, 'Firestore baca cerita', fbHint(e)); }
+            try { await withTimeout(setDoc(doc(fs, 'media', '_diag'), { d: 'ok' }), 8000); add(true, 'Firestore tulis foto/media'); }
+            catch (e) { add(false, 'Firestore tulis foto/media', fbHint(e)); }
             return rows.join('\n');
         };
         window.fbDiagnose = async function () {
