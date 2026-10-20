@@ -164,6 +164,9 @@
 
             <!-- Active User Switcher Header Widget -->
             <div class="flex items-center gap-3">
+                <a href="#" onclick="downloadApk(event)" title="Download APK Android" class="apk-download-btn hidden sm:flex items-center gap-2 bg-space-accent hover:bg-emerald-600 text-white font-bold text-xs px-3.5 py-2.5 rounded-2xl shadow-sm transition">
+                    <i class="fa-brands fa-android text-sm"></i> <span class="hidden lg:inline">Download APK</span>
+                </a>
                 <div class="relative group">
                     <button class="flex items-center gap-2.5 bg-white border-2 border-space-500/30 p-1.5 pl-3 pr-3.5 rounded-2xl shadow-sm hover:border-space-600 transition">
                         <div id="currentUserAvatar" class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold bg-space-600 shadow-sm">
@@ -222,6 +225,9 @@
                     <button onclick="switchTab('tasks')" class="bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-2xl text-xs backdrop-blur-md border border-white/20 transition flex items-center gap-2">
                         <i class="fa-solid fa-list-check"></i> Kelola Tugas
                     </button>
+                    <a href="#" onclick="downloadApk(event)" class="apk-download-btn bg-space-accent hover:bg-emerald-600 text-white font-bold px-5 py-3 rounded-2xl text-xs transition shadow-lg flex items-center gap-2">
+                        <i class="fa-brands fa-android"></i> Download APK
+                    </a>
                 </div>
             </div>
 
@@ -1045,6 +1051,28 @@
 
     <!-- APPLICATION LOGIC JS -->
     <script>
+        // ==================== DOWNLOAD APK ====================
+        // GANTI link di bawah dengan link download APK kamu
+        // (Google Drive direct link, GitHub Releases, Dropbox, server sendiri, dll.)
+        const APK_DOWNLOAD_URL = 'https://example.com/MariskaTools.apk';
+        const APK_FILE_NAME = 'MariskaTools.apk';
+
+        function downloadApk(e) {
+            if (e) e.preventDefault();
+            if (!APK_DOWNLOAD_URL || APK_DOWNLOAD_URL.includes('example.com')) {
+                showToast('Link APK belum diatur. Isi APK_DOWNLOAD_URL di dalam kode.', 4000);
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = APK_DOWNLOAD_URL;
+            a.download = APK_FILE_NAME;      // dipakai jika link satu domain; lintas domain tetap terunduh via browser
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            showToast('Mengunduh ' + APK_FILE_NAME + '...');
+        }
+
         // GLOBAL APPLICATION STATE
         let teamUsers = JSON.parse(localStorage.getItem('space_iso_users')) || [];
 
