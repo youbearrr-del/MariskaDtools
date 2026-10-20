@@ -2835,7 +2835,7 @@
         const app = initializeApp(firebaseConfig);
         isSupported().then(ok => { if (ok) getAnalytics(app); }).catch(() => {});
         const fs = getFirestore(app), auth = getAuth(app); // semua data (anggota, chat, cerita, foto) disimpan di Firestore
-        const toast = m => { if (window.showToast) window.showToast(m); else console.warn(m); };
+        const toast = (m, ms) => { if (window.showToast) window.showToast(m, ms); else console.warn(m); };
 
         // ---- util: ratakan objek jadi path/leaf supaya hanya bagian yang berubah yang ditulis ----
         const flat = (v, p = '', out = {}) => {
@@ -2891,7 +2891,7 @@
             const lim = Date.now() - STORY_TTL;
             for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1); // cerita > 24 jam
             if (st.users) pushUsers();
-            if (st.chat) { pushDocs('messages'); pushDocs('stories'); }
+            if (st.chat) { pushDocs('messages'); pushDocs('stories'); } else retryChat();
         }
 
         // pesan & cerita: satu dokumen Firestore per item, hanya bagian yang berubah yang ditulis
@@ -2912,6 +2912,39 @@
             }
             for (const id of Object.keys(c)) if (!seen.has(id)) { ops.push(deleteDoc(doc(fs, kind, id))); delete c[id]; }
             ops.forEach(pr => pr.catch(e => toast('Firestore: ' + fbHint(e))));
+        }
+
+        let chatListening = false, chatLoading = false, chatRetryAt = 0;
+        async function loadChat() {
+            const demo = sync._demo || new Set(), lim = Date.now() - STORY_TTL;
+            try {
+                for (const kind of ['messages', 'stories']) {
+                    const snap = await withTimeout(getDocs(collection(fs, kind)), 12000);
+                    snap.forEach(d => {
+                        const id = d.id, v = d.data();
+                        if (!v || typeof v !== 'object') return;
+                        if (kind === 'stories' && (v.ts || 0) < lim) { deleteDoc(d.ref).catch(() => {}); return; }
+                        if ((kind === 'messages' && (['m1', 'm2', 'm3'].includes(id) || demo.has(v.senderId) || demo.has(v.target))) || (kind === 'stories' && demo.has(v.userId))) { deleteDoc(d.ref).catch(() => {}); return; }
+                        cache[kind][id] = flat({ ...v, id });
+                        mergeRemote(kind, id, { ...v });
+                    });
+                }
+                st.chat = true; delete sync.errors.chat; return true;
+            } catch (e) {
+                st.chat = false; sync.errors.chat = e; console.warn(e);
+                toast('Chat belum bisa tersimpan ke cloud: ' + fbHint(e), 9000);
+                return false;
+            }
+        }
+        function startChat() {
+            if (chatListening) return;
+            chatListening = true; listen('messages'); listen('stories');
+            pend.messages = pend.stories = true; sched();
+        }
+        function retryChat() {
+            if (st.chat || chatLoading || !sync.ready || Date.now() < chatRetryAt) return;
+            chatRetryAt = Date.now() + 15000; chatLoading = true;
+            loadChat().then(ok => { chatLoading = false; if (ok) { startChat(); push(); toast('Chat tersambung ke cloud'); } });
         }
 
         function pushUsers() {
@@ -3190,30 +3223,17 @@
                 st.users = true;
             } catch (e) { st.users = false; sync.errors.users = e; toast('Firestore: ' + e.message); console.warn(e); }
 
-            // 2) pesan & cerita (Firestore)
-            try {
-                for (const kind of ['messages', 'stories']) {
-                    const snap = await withTimeout(getDocs(collection(fs, kind)), 12000);
-                    snap.forEach(d => {
-                        const id = d.id, v = d.data();
-                        if (!v || typeof v !== 'object') return;
-                        if (kind === 'stories' && (v.ts || 0) < lim) { deleteDoc(d.ref).catch(() => {}); return; }
-                        if ((kind === 'messages' && (['m1', 'm2', 'm3'].includes(id) || demo.has(v.senderId) || demo.has(v.target))) || (kind === 'stories' && demo.has(v.userId))) { deleteDoc(d.ref).catch(() => {}); return; }
-                        cache[kind][id] = flat({ ...v, id });
-                        mergeRemote(kind, id, { ...v });
-                    });
-                }
-                st.chat = true;
-            } catch (e) { st.chat = false; sync.errors.chat = e; toast('Firestore chat: ' + fbHint(e)); console.warn(e); }
+            // 2) pesan & cerita (Firestore); kalau gagal, dicoba lagi otomatis saat mengirim pesan
+            sync._demo = demo;
+            await loadChat();
 
-            if (!st.users && !st.chat) return;
             sync.ready = true; mod.enforce();
-            if (st.chat) { listen('messages'); listen('stories'); }
+            if (st.chat) startChat();
             if (st.users && !usersListening) { usersListening = true; listenUsers(); listenPresence(); }
             if (st.users && !needsAccount && teamUsers.some(u => u.id === activeUserId)) sync.setActive(activeUserId);
             push();
             pend.users = pend.messages = pend.stories = true; sched();
-            toast(st.users && st.chat ? 'Terhubung ke Firebase' : 'Firebase terhubung sebagian, tekan Cek koneksi di halaman Tim');
+            if (st.users && st.chat) toast('Terhubung ke Firebase');
         })().finally(() => resolveReady());
 
         // ---- diagnosis koneksi: tunjukkan persis layanan Firebase mana yang bermasalah ----
@@ -3250,6 +3270,7 @@
         window.fbDiagnose = async function () {
             toast('Memeriksa koneksi Firebase...');
             const txt = await sync.diagnose();
+            chatRetryAt = 0; retryChat();
             if (window.appAlert) appAlert(txt, { title: 'Status koneksi Firebase' }); else alert(txt);
         };
     </script>
