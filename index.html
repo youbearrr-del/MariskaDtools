@@ -650,7 +650,7 @@
                         <button onclick="startPairing()" class="bg-space-50 hover:bg-space-100 text-space-600 text-xs font-bold py-2.5 rounded-xl border border-space-500/30"><i class="fa-solid fa-link mr-1"></i>Tautkan perangkat</button>
                         <button onclick="cloneAccount()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl"><i class="fa-regular fa-clone mr-1"></i>Klon akun</button>
                     </div>
-                    <div class="flex gap-2 mt-2"><input id="pairInput" type="text" inputmode="numeric" maxlength="6" placeholder="Kode dari perangkat lain" class="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-space-600"><button onclick="linkWithCode()" class="bg-space-600 text-white text-xs font-bold px-4 rounded-xl">Masuk</button></div>
+                    <div class="flex gap-2 mt-2"><input id="pairInput" type="text" inputmode="numeric" maxlength="8" placeholder="Kode dari perangkat lain" class="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-space-600"><button onclick="linkWithCode()" class="bg-space-600 text-white text-xs font-bold px-4 rounded-xl">Masuk</button></div>
                 </div>
                 <div class="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                     <div>
@@ -1684,41 +1684,67 @@
         }
         function renderDevices() {
             const u = getActiveUser(); ensureDevice();
-            document.getElementById('devList').innerHTML = u.devices.map(d => `
+            const mine = u.devices.filter(d => d.id === myDeviceId());
+            const linked = Object.entries((window.fbSync && fbSync.links) || {}).filter(([id, l]) => l.userId === u.id && l.deviceId !== myDeviceId()).map(([id, l]) => ({ id, name: l.name || 'Perangkat', lastActive: l.linkedAt }));
+            document.getElementById('devList').innerHTML = mine.concat(linked).map(d => `
                 <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
                     <i class="fa-solid ${/Android|iOS/.test(d.name) ? 'fa-mobile-screen' : 'fa-laptop'} text-space-600"></i>
                     <div class="min-w-0 flex-1"><div class="text-xs font-bold text-slate-800 truncate">${esc(d.name)} ${d.id === myDeviceId() ? '<span class="text-[10px] text-emerald-600">· perangkat ini</span>' : ''}</div>
-                    <div class="text-[11px] text-slate-400 font-medium">${d.id === myDeviceId() ? 'Aktif sekarang' : 'Terakhir aktif ' + formatLastSeen(d.lastActive)}</div></div>
-                    ${d.id !== myDeviceId() ? `<button onclick="logoutDevice('${d.id}')" class="text-[11px] font-bold text-rose-600 hover:underline shrink-0">Keluarkan</button>` : ''}
+                    <div class="text-[11px] text-slate-400 font-medium">${d.id === myDeviceId() ? 'Aktif sekarang' : 'Tertaut ' + formatLastSeen(d.lastActive)}</div></div>
+                    ${d.id !== myDeviceId() ? `<button onclick="logoutDevice('${esc(d.id)}')" class="text-[11px] font-bold text-rose-600 hover:underline shrink-0">Keluarkan</button>` : ''}
                 </div>`).join('');
             const p = JSON.parse(localStorage.getItem('space_iso_pair') || 'null');
             document.getElementById('pairBox').innerHTML = p && p.exp > Date.now() && p.userId === u.id
-                ? `<div class="text-center bg-space-50 border border-space-500/30 rounded-xl p-3"><div class="text-[11px] font-bold text-slate-500">Masukkan kode ini di perangkat lain (berlaku 5 menit)</div><div class="text-2xl font-extrabold tracking-[0.3em] text-space-700 mt-1">${p.code}</div></div>` : '';
+                ? `<div class="text-center bg-space-50 border border-space-500/30 rounded-xl p-3"><div class="text-[11px] font-bold text-slate-500">Masukkan kode ini di perangkat lain (berlaku 5 menit, sekali pakai)</div><div class="text-2xl font-extrabold tracking-[0.3em] text-space-700 mt-1">${esc(p.code)}</div></div>` : '';
         }
-        function startPairing() {
-            localStorage.setItem('space_iso_pair', JSON.stringify({ code: String(Math.floor(100000 + Math.random() * 900000)), userId: activeUserId, exp: Date.now() + 300000 }));
+        async function startPairing() {
+            const u = getActiveUser(); if (!u) return;
+            if (!(window.fbSync && fbSync.createPair)) { showToast('Firebase belum siap, muat ulang halaman'); return; }
+            const p = { code: String(Math.floor(10000000 + Math.random() * 90000000)), userId: u.id, ownerEmail: String(u.ownerEmail || u.email || '').toLowerCase(), exp: Date.now() + 300000 };
+            try { await fbSync.createPair(p); } catch (e) { showToast('Gagal membuat kode: ' + e.message, 5000); return; }
+            localStorage.setItem('space_iso_pair', JSON.stringify(p));
             renderDevices();
         }
-        function linkWithCode() {
-            const inp = document.getElementById('pairInput'), p = JSON.parse(localStorage.getItem('space_iso_pair') || 'null');
-            if (!p || p.exp < Date.now() || inp.value.trim() !== p.code) { showToast('Kode salah atau kedaluwarsa'); return; }
+        async function linkWithCode() {
+            const inp = document.getElementById('pairInput'), code = inp.value.trim();
+            if (!/^\d{8}$/.test(code)) { showToast('Masukkan kode 8 angka dari perangkat lain'); return; }
+            if (!(window.fbSync && fbSync.claimPair)) { showToast('Firebase belum siap, muat ulang halaman'); return; }
+            let p;
+            try { p = await fbSync.claimPair(code, { id: myDeviceId(), name: deviceName() }); } catch (e) { showToast('Gagal menautkan: ' + e.message, 5000); return; }
+            if (!p || !p.exp || p.exp < Date.now()) { showToast('Kode salah atau kedaluwarsa'); return; }
             const u = teamUsers.find(x => x.id === p.userId);
-            if (!u) return;
-            u.devices = u.devices || [];
-            if (!u.devices.some(d => d.id === myDeviceId())) u.devices.push({ id: myDeviceId(), name: deviceName(), linkedAt: Date.now(), lastActive: Date.now() });
-            localStorage.removeItem('space_iso_pair'); inp.value = '';
-            if (u.id !== activeUserId) switchActiveUser(u.id); else saveAllState();
+            if (!u) { showToast('Akun tujuan belum termuat, muat ulang halaman lalu coba lagi', 4000); return; }
+            addLinkedUser(u.id, p.linkId);
+            inp.value = '';
+            if (u.id !== activeUserId) switchActiveUser(u.id); else { ensureDevice(); saveAllState(); }
             renderDevices(); showToast(`Perangkat tertaut ke ${u.name}`);
         }
-        function logoutDevice(id) {
+        async function logoutDevice(id) {
+            if (window.fbSync && fbSync.links && fbSync.links[id]) {
+                try { await fbSync.removeLink(id); showToast('Perangkat dikeluarkan'); } catch (e) { showToast('Gagal mengeluarkan perangkat: ' + e.message, 4000); }
+                renderDevices(); return;
+            }
             const u = getActiveUser();
-            u.devices = u.devices.filter(d => d.id !== id);
+            u.devices = (u.devices || []).filter(d => d.id !== id);
             saveAllState(); renderDevices(); showToast('Perangkat dikeluarkan');
         }
+        // Dipanggil modul Firebase: daftar perangkat tertaut berubah / akses dicabut pemilik akun
+        window.onLinksChanged = function () { if (typeof isPageVisible === 'function' && isPageVisible('pageProfile')) renderDevices(); };
+        window.onLinkRemoved = function (id, d) {
+            const ids = lsList('space_iso_link_ids');
+            if (!ids.includes(id)) return;
+            localStorage.setItem('space_iso_link_ids', JSON.stringify(ids.filter(x => x !== id)));
+            if (d && d.userId) localStorage.setItem('space_iso_linked', JSON.stringify(lsList('space_iso_linked').filter(x => x !== d.userId)));
+            showToast('Akses perangkat ini ke akun tertaut telah dicabut', 4000);
+            if (!canSwitchTo(activeUserId)) {
+                const own = teamUsers.find(x => canSwitchTo(x.id));
+                if (own) switchActiveUser(own.id); else { needsAccount = true; renderLogin(); }
+            }
+        };
         async function cloneAccount() {
             const u = getActiveUser();
             if (!(await appConfirm('Akun baru akan dibuat dengan data yang sama.', {title:`Klon akun ${u.name}?`, okText:'Buat klon'}))) return;
-            teamUsers.push({ ...u, id: 'user_' + Date.now(), name: u.name + ' (Klon)', email: 'klon.' + u.email, status: 'offline', lastSeen: null, joinedAt: Date.now(), devices: [] });
+            teamUsers.push({ ...u, id: 'user_' + Date.now(), name: u.name + ' (Klon)', email: 'klon.' + u.email, ownerEmail: String(u.ownerEmail || u.email || '').toLowerCase(), addedBy: myLoginEmail(), status: 'offline', lastSeen: null, joinedAt: Date.now(), devices: [] });
             saveAllState(); renderUsers(); renderSpaceChatList(); updateChatHeader();
             showToast('Akun klon dibuat. Pindah lewat menu ganti akun.');
         }
@@ -1890,7 +1916,7 @@
         // Dipanggil modul Firebase setiap ada perubahan dari perangkat lain
         function fbAfterRemote(info) {
             if (needsAccount) return;
-            if (!teamUsers.some(u => u.id === activeUserId)) { needsAccount = true; renderLogin(); return; }
+            if (!teamUsers.some(u => u.id === activeUserId) || !canSwitchTo(activeUserId)) { needsAccount = true; renderLogin(); return; }
             if (info.messages) spaceChatMessages.sort((a, b) => (a.ts || 0) - (b.ts || 0));
             const chatOpen = isPageVisible('pageChat') && (!isMobileView() || document.getElementById('pageChat').classList.contains('chat-open'));
             let newInActive = false;
@@ -1957,6 +1983,7 @@
                 teamUsers.push(u);
             }
             btn.disabled = false; lbl.innerText = 'Masuk dengan Google';
+            clearOwnership(); localStorage.setItem('space_iso_login_email', email);
             finishLogin(u.id);
         }
         function finishLogin(id) {
@@ -1973,12 +2000,14 @@
         async function logout() {
             if (!(await appConfirm('Anda bisa masuk kembali kapan saja.', {title:'Keluar dari akun?', okText:'Keluar', danger:true}))) return;
             if (window.fbSync && fbSync.goOffline) await fbSync.goOffline();
+            if (window.fbSync && fbSync.removeLink) { try { await Promise.race([Promise.all(lsList('space_iso_link_ids').map(id => fbSync.removeLink(id).catch(() => {}))), new Promise(r => setTimeout(r, 1500))]); } catch (e) {} }
+            clearOwnership();
             localStorage.removeItem('space_iso_logged_in');
             // jika memakai Firebase Auth, panggil signOut(auth) Anda di sini sebelum reload
             location.reload();
         }
         window.onload = function() {
-            needsAccount = localStorage.getItem('space_iso_logged_in') !== '1' || !teamUsers.some(u => u.id === activeUserId);
+            needsAccount = localStorage.getItem('space_iso_logged_in') !== '1' || !myLoginEmail() || !teamUsers.some(u => u.id === activeUserId) || !canSwitchTo(activeUserId);
             renderLogin();
             if (needsAccount) return;
             startApp();
@@ -2086,9 +2115,9 @@
                     <div class="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <span class="w-2.5 h-2.5 rounded-full ${t.completed ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
-                            <span class="text-xs font-bold text-slate-800">${t.text}</span>
+                            <span class="text-xs font-bold text-slate-800">${esc(t.text)}</span>
                         </div>
-                        <span class="text-[10px] font-semibold text-slate-400">PJ: ${assignee.name}</span>
+                        <span class="text-[10px] font-semibold text-slate-400">PJ: ${esc(assignee.name)}</span>
                     </div>
                 `;
             }).join('');
@@ -2097,7 +2126,7 @@
             const notesFeed = document.getElementById('dashNotesFeed');
             notesFeed.innerHTML = stickyNotes.slice(0, 2).map(n => `
                 <div class="p-3 rounded-2xl border ${colorStyles[n.color] || colorStyles.amber} text-xs font-bold leading-relaxed">
-                    ${n.text}
+                    ${esc(n.text)}
                 </div>
             `).join('');
         }
@@ -2119,18 +2148,39 @@
             setAvatar(avatar, user); setAvatar(avatarMini, user); setAvatar(document.getElementById('dashProfileAvatar'), user);
 
             const switchList = document.getElementById('quickUserSwitchList');
-            switchList.innerHTML = teamUsers.map(u => `
-                <button onclick="switchActiveUser('${u.id}')" class="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition ${u.id === activeUserId ? 'bg-space-50 font-bold border border-space-500/30' : ''}">
+            switchList.innerHTML = teamUsers.filter(u => canSwitchTo(u.id)).map(u => `
+                <button onclick="switchActiveUser('${esc(u.id)}')" class="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition ${u.id === activeUserId ? 'bg-space-50 font-bold border border-space-500/30' : ''}">
                     <div class="w-7 h-7 rounded-full text-white text-[10px] flex items-center justify-center font-bold" style="${avStyle(u)}">${avText(u)}</div>
                     <div class="text-left text-xs truncate">
-                        <div class="text-slate-800 leading-none font-bold">${u.name}</div>
-                        <div class="text-[9px] text-slate-400 mt-1">${u.role}</div>
+                        <div class="text-slate-800 leading-none font-bold">${esc(u.name)}</div>
+                        <div class="text-[9px] text-slate-400 mt-1">${esc(u.role)}</div>
                     </div>
                 </button>
             `).join('');
         }
 
+        // ----- Kepemilikan akun: hanya akun sendiri, klon sendiri, dan akun yang ditautkan lewat kode -----
+        function myLoginEmail() { return (localStorage.getItem('space_iso_login_email') || '').trim().toLowerCase(); }
+        function lsList(k) { try { const l = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+        function canSwitchTo(uid) {
+            const u = teamUsers.find(x => x.id === uid); if (!u) return false;
+            const me = myLoginEmail();
+            if (me && (String(u.email || '').toLowerCase() === me || String(u.ownerEmail || '').toLowerCase() === me)) return true;
+            return lsList('space_iso_linked').includes(uid);
+        }
+        function canManageUser(u) {
+            const me = myLoginEmail();
+            return canSwitchTo(u.id) || (!!me && String(u.addedBy || '').toLowerCase() === me);
+        }
+        function addLinkedUser(userId, linkId) {
+            const l = lsList('space_iso_linked'); if (!l.includes(userId)) l.push(userId);
+            localStorage.setItem('space_iso_linked', JSON.stringify(l));
+            if (linkId) { const k = lsList('space_iso_link_ids'); if (!k.includes(linkId)) k.push(linkId); localStorage.setItem('space_iso_link_ids', JSON.stringify(k)); }
+        }
+        function clearOwnership() { ['space_iso_login_email', 'space_iso_linked', 'space_iso_link_ids', 'space_iso_pair'].forEach(k => localStorage.removeItem(k)); }
+
         function switchActiveUser(userId) {
+            if (!canSwitchTo(userId)) { showToast('Anda tidak bisa masuk ke akun orang lain. Hanya akun sendiri, klon, atau perangkat tertaut.', 4000); return; }
             if (userId === activeUserId) {
                 showToast(`Anda sudah masuk sebagai ${getActiveUser().name}`);
                 return;
@@ -2532,7 +2582,8 @@
                 color: selectedColorTemp,
                 status: 'offline',
                 lastSeen: null,
-                joinedAt: Date.now()
+                joinedAt: Date.now(),
+                addedBy: myLoginEmail()
             };
             const btn = e.submitter || (e.target && e.target.querySelector('button[type="submit"]'));
             if (btn) btn.disabled = true;
@@ -2562,6 +2613,8 @@
         }
 
         function deleteUser(id) {
+            const target = teamUsers.find(u => u.id === id);
+            if (!target || !canManageUser(target)) { showToast('Anda hanya bisa menghapus anggota yang Anda tambahkan atau klon Anda sendiri'); return; }
             if (teamUsers.length <= 1) {
                 showToast('Minimal harus ada 1 pengguna!');
                 return;
@@ -2592,11 +2645,11 @@
                             </div>
                             <div>
                                 <h4 class="font-extrabold text-base text-slate-800 flex items-center gap-2">
-                                    ${u.name}
+                                    ${esc(u.name)}
                                     ${isMe ? '<span class="text-[10px] bg-space-600 text-white px-2 py-0.5 rounded-full font-bold">Anda</span>' : ''}
                                 </h4>
-                                <div class="text-xs font-bold text-space-600 mt-0.5">${u.role}</div>
-                                <div class="text-xs text-slate-400 font-medium mt-0.5">${u.email}</div>
+                                <div class="text-xs font-bold text-space-600 mt-0.5">${esc(u.role)}</div>
+                                <div class="text-xs text-slate-400 font-medium mt-0.5">${esc(u.email)}</div>
                                 <div class="text-[11px] font-semibold mt-1 flex items-center gap-1.5 ${isOnline(u) ? 'text-emerald-600' : 'text-slate-400'}">
                                     <span class="w-1.5 h-1.5 rounded-full ${isOnline(u) ? 'bg-emerald-500' : 'bg-slate-300'}"></span>${presenceText(u)}
                                 </div>
@@ -2604,11 +2657,11 @@
                         </div>
 
                         <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
-                            <button onclick="switchActiveUser('${u.id}')" class="text-xs font-bold text-slate-600 hover:text-space-600 transition flex items-center gap-1.5">
+                            ${canSwitchTo(u.id) ? `<button onclick="switchActiveUser('${esc(u.id)}')" class="text-xs font-bold text-slate-600 hover:text-space-600 transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-right-to-bracket"></i> Masuk Akun Ini
-                            </button>
-                            ${!isMe ? `
-                                <button onclick="deleteUser('${u.id}')" class="text-slate-300 hover:text-rose-600 transition p-1">
+                            </button>` : `<span class="text-[11px] font-semibold text-slate-400"><i class="fa-solid fa-lock mr-1"></i>Akun milik anggota lain</span>`}
+                            ${!isMe && canManageUser(u) ? `
+                                <button onclick="deleteUser('${esc(u.id)}')" class="text-slate-300 hover:text-rose-600 transition p-1">
                                     <i class="fa-solid fa-trash-can text-xs"></i>
                                 </button>
                             ` : ''}
@@ -2618,7 +2671,7 @@
             }).join('');
 
             if (todoAssigneeSelect) {
-                todoAssigneeSelect.innerHTML = teamUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+                todoAssigneeSelect.innerHTML = teamUsers.map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');
             }
         }
 
@@ -2647,9 +2700,9 @@
                 const author = teamUsers.find(u => u.id === n.authorId) || { name: 'Anggota' };
                 return `
                     <div class="p-5 rounded-3xl border ${colorStyles[n.color] || colorStyles.amber} flex flex-col justify-between shadow-sm min-h-[200px]">
-                        <textarea onchange="updateNoteText('${n.id}', this.value)" class="w-full bg-transparent resize-none focus:outline-none text-xs font-bold leading-relaxed h-28">${n.text}</textarea>
+                        <textarea onchange="updateNoteText('${n.id}', this.value)" class="w-full bg-transparent resize-none focus:outline-none text-xs font-bold leading-relaxed h-28">${esc(n.text)}</textarea>
                         <div class="flex justify-between items-center pt-3 border-t border-black/5 text-[10px] font-bold text-slate-500">
-                            <span><i class="fa-regular fa-user mr-1"></i>${author.name}</span>
+                            <span><i class="fa-regular fa-user mr-1"></i>${esc(author.name)}</span>
                             <button onclick="deleteNote('${n.id}')" class="hover:text-rose-600 transition"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </div>
@@ -2727,8 +2780,8 @@
                         <div class="flex items-center gap-3 min-w-0">
                             <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTodo(${t.id})" class="rounded-lg text-space-600 w-4 h-4 cursor-pointer">
                             <div>
-                                <div class="text-xs font-bold ${t.completed ? 'line-through text-slate-400' : 'text-slate-800'}">${t.text}</div>
-                                <div class="text-[10px] text-slate-400 font-semibold mt-0.5">Penanggung Jawab: ${assignee.name}</div>
+                                <div class="text-xs font-bold ${t.completed ? 'line-through text-slate-400' : 'text-slate-800'}">${esc(t.text)}</div>
+                                <div class="text-[10px] text-slate-400 font-semibold mt-0.5">Penanggung Jawab: ${esc(assignee.name)}</div>
                             </div>
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
@@ -2753,14 +2806,14 @@
             const tasksList = document.getElementById('shareTasksList');
 
             notesList.innerHTML = stickyNotes.map(n => `
-                <button onclick="attachItemAndSend('Catatan: ${n.text}')" class="w-full text-left p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 border border-amber-200 truncate">
-                    ${n.text}
+                <button data-t="${esc('Catatan: ' + n.text)}" onclick="attachItemAndSend(this.dataset.t)" class="w-full text-left p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 border border-amber-200 truncate">
+                    ${esc(n.text)}
                 </button>
             `).join('');
 
             tasksList.innerHTML = todos.map(t => `
-                <button onclick="attachItemAndSend('Tugas: ${t.text}')" class="w-full text-left p-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-xs font-bold text-sky-900 border border-sky-200 truncate">
-                    ${t.text}
+                <button data-t="${esc('Tugas: ' + t.text)}" onclick="attachItemAndSend(this.dataset.t)" class="w-full text-left p-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-xs font-bold text-sky-900 border border-sky-200 truncate">
+                    ${esc(t.text)}
                 </button>
             `).join('');
 
@@ -2858,7 +2911,7 @@
         const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('tidak merespons, cek koneksi internet, database Firestore, dan rules')), ms))]);
 
         // status / lastSeen / devices sengaja tidak ikut: status online datang dari /presence
-        const USER_FIELDS = ['id', 'name', 'email', 'role', 'color', 'bio', 'photo', 'joinedAt'];
+        const USER_FIELDS = ['id', 'name', 'email', 'role', 'color', 'bio', 'photo', 'joinedAt', 'ownerEmail', 'addedBy'];
         // semua jenis data disimpan di Firestore (fs:true)
         const KINDS = {
             users:    { fs: true, list: () => teamUsers },
@@ -3098,6 +3151,7 @@
         async function forceOut() {
             try { await sync.goOffline(); } catch (e) {}
             localStorage.removeItem('space_iso_logged_in'); localStorage.removeItem('space_login_at');
+            ['space_iso_login_email', 'space_iso_linked', 'space_iso_link_ids', 'space_iso_pair'].forEach(k => localStorage.removeItem(k));
             location.reload();
         }
         function banner(html, tone, key) {
@@ -3184,6 +3238,40 @@
 
         // ---- simpan anggota baru langsung ke Firestore, dengan hasil yang bisa dibaca ----
         let usersListening = false;
+        // ---- perangkat tertaut (kode sekali pakai, koleksi pairing & links) ----
+        sync.links = {};
+        function listenLinks() {
+            onSnapshot(collection(fs, 'links'), snap => {
+                snap.docChanges().forEach(ch => {
+                    const id = ch.doc.id;
+                    if (ch.type === 'removed') { delete sync.links[id]; if (window.onLinkRemoved) window.onLinkRemoved(id, ch.doc.data()); }
+                    else sync.links[id] = ch.doc.data();
+                });
+                if (window.onLinksChanged) window.onLinksChanged();
+            }, e => console.warn('links: ' + e.message));
+        }
+        sync.createPair = async p => {
+            try { await withTimeout(setDoc(doc(fs, 'pairing', p.code), p), 10000); }
+            catch (e) { throw new Error(fbHint(e)); }
+        };
+        sync.claimPair = async (code, dev) => {
+            const pr = doc(fs, 'pairing', code);
+            let sn;
+            try { sn = await withTimeout(getDoc(pr), 10000); } catch (e) { throw new Error(fbHint(e)); }
+            if (!sn.exists()) return null;
+            const p = sn.data();
+            if (!p.exp || p.exp < Date.now()) { deleteDoc(pr).catch(() => {}); return null; }
+            if (!auth.currentUser) throw new Error('belum login');
+            const linkId = p.userId + '_' + auth.currentUser.uid;
+            try { await withTimeout(setDoc(doc(fs, 'links', linkId), { userId: p.userId, uid: auth.currentUser.uid, code, deviceId: dev.id, name: dev.name, linkedAt: Date.now() }), 10000); }
+            catch (e) { throw new Error(fbHint(e)); }
+            deleteDoc(pr).catch(() => {});
+            return { ...p, linkId };
+        };
+        sync.removeLink = async id => {
+            try { await withTimeout(deleteDoc(doc(fs, 'links', id)), 8000); delete sync.links[id]; }
+            catch (e) { throw new Error(fbHint(e)); }
+        };
         sync.saveUser = async u => {
             // pastikan sudah login ke Firebase (anonim) sebelum menulis
             if (!auth.currentUser) {
@@ -3197,14 +3285,22 @@
             // kalau pemuatan awal gagal tapi sekarang berhasil, aktifkan sinkronisasi anggota
             if (!st.users) {
                 st.users = true; sync.ready = true; delete sync.errors.users;
-                if (!usersListening) { usersListening = true; listenUsers(); listenPresence(); }
+                if (!usersListening) { usersListening = true; listenUsers(); listenPresence(); listenLinks(); }
             }
         };
 
         // ---- mulai ----
         (async function init() {
-            try { await withTimeout(signInAnonymously(auth), 10000); st.auth = true; }
+            try {
+                // pakai sesi yang sudah ada (mis. login Google); login anonim hanya kalau belum ada sesi
+                if (auth.authStateReady) await withTimeout(auth.authStateReady(), 8000);
+                if (!auth.currentUser) await withTimeout(signInAnonymously(auth), 10000);
+                st.auth = true;
+            }
             catch (e) { st.auth = false; sync.errors.auth = e; toast('Firebase Auth gagal: aktifkan "Anonymous" di Authentication > Sign-in method'); console.warn(e); }
+            // sesi login web harus cocok dengan akun Google yang dipakai masuk; kalau tidak, minta login ulang
+            { const li = localStorage.getItem('space_iso_login_email'), cu = auth.currentUser;
+              if (localStorage.getItem('space_iso_logged_in') === '1' && li && cu && String(cu.email || '').toLowerCase() !== li) { forceOut(); return; } }
             listenConfig();
             const lim = Date.now() - STORY_TTL;
             for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1);
@@ -3229,12 +3325,14 @@
 
             sync.ready = true; mod.enforce();
             if (st.chat) startChat();
-            if (st.users && !usersListening) { usersListening = true; listenUsers(); listenPresence(); }
+            if (st.users && !usersListening) { usersListening = true; listenUsers(); listenPresence(); listenLinks(); }
             if (st.users && !needsAccount && teamUsers.some(u => u.id === activeUserId)) sync.setActive(activeUserId);
             push();
             pend.users = pend.messages = pend.stories = true; sched();
             if (st.users && st.chat) toast('Terhubung ke Firebase');
         })().finally(() => resolveReady());
+        // pemeriksaan berkala: sambungkan ulang chat otomatis kalau sempat gagal
+        setInterval(() => { if (sync.ready && !st.chat) { chatRetryAt = 0; retryChat(); } }, 30000);
 
         // ---- diagnosis koneksi: tunjukkan persis layanan Firebase mana yang bermasalah ----
         function fbHint(e) {
