@@ -2947,6 +2947,12 @@
             if (st.chat) { pushDocs('messages'); pushDocs('stories'); } else retryChat();
         }
 
+        let lastWarn = 0;
+        const warn = e => {
+            sync.failed = true;
+            if (Date.now() - lastWarn > 10000) { lastWarn = Date.now(); toast('Gagal kirim ke cloud: ' + fbHint(e), 7000); }
+        };
+
         // pesan & cerita: satu dokumen Firestore per item, hanya bagian yang berubah yang ditulis
         function pushDocs(kind) {
             const K = KINDS[kind], c = cache[kind], seen = new Set(), ops = [];
@@ -2954,17 +2960,20 @@
                 if (!item || item.id === undefined) continue;
                 const id = String(item.id); seen.add(id);
                 const nf = flat(K.wire(item)), of = c[id], dr = doc(fs, kind, id);
-                if (!of) ops.push(setDoc(dr, nest(nf)));
+                if (!of) ops.push([id, setDoc(dr, nest(nf))]);
                 else {
                     const ch = {};
                     for (const k in nf) if (of[k] !== nf[k]) ch[k.replace(/\//g, '.')] = nf[k];
                     for (const k in of) if (!(k in nf)) ch[k.replace(/\//g, '.')] = deleteField();
-                    if (Object.keys(ch).length) ops.push(updateDoc(dr, ch).catch(e => /not.?found|no document/i.test(String(e.code) + ' ' + String(e.message)) ? setDoc(dr, nest(nf)) : Promise.reject(e)));
+                    if (Object.keys(ch).length) ops.push([id, updateDoc(dr, ch).catch(e => /not.?found|no document/i.test(String(e.code) + ' ' + String(e.message)) ? setDoc(dr, nest(nf)) : Promise.reject(e))]);
                 }
                 c[id] = nf;
             }
-            for (const id of Object.keys(c)) if (!seen.has(id)) { ops.push(deleteDoc(doc(fs, kind, id))); delete c[id]; }
-            ops.forEach(pr => pr.catch(e => toast('Firestore: ' + fbHint(e))));
+            const dels = [];
+            for (const id of Object.keys(c)) if (!seen.has(id)) { dels.push(deleteDoc(doc(fs, kind, id))); delete c[id]; }
+            // gagal = hapus dari cache supaya dicoba lagi otomatis, bukan dianggap sudah terkirim
+            ops.forEach(([id, pr]) => pr.catch(e => { delete c[id]; warn(e); }));
+            dels.forEach(pr => pr.catch(() => {}));
         }
 
         let chatListening = false, chatLoading = false, chatRetryAt = 0;
@@ -3001,22 +3010,23 @@
         }
 
         function pushUsers() {
-            const c = cache.users, seen = new Set(), ops = [];
+            const c = cache.users, seen = new Set(), ops = [], dels = [];
             for (const u of teamUsers) {
                 if (!u || u.id === undefined) continue;
                 const id = String(u.id); seen.add(id);
                 const nf = flat(pick(u, USER_FIELDS)), of = c[id];
-                if (!of) ops.push(setDoc(doc(fs, 'users', id), nf));
+                if (!of) ops.push([id, setDoc(doc(fs, 'users', id), nf)]);
                 else {
                     const ch = {};
                     for (const k in nf) if (of[k] !== nf[k]) ch[k] = nf[k];
                     for (const k in of) if (!(k in nf)) ch[k] = deleteField();
-                    if (Object.keys(ch).length) ops.push(updateDoc(doc(fs, 'users', id), ch));
+                    if (Object.keys(ch).length) ops.push([id, updateDoc(doc(fs, 'users', id), ch)]);
                 }
                 c[id] = nf;
             }
-            for (const id of Object.keys(c)) if (!seen.has(id)) { ops.push(deleteDoc(doc(fs, 'users', id))); delete c[id]; }
-            ops.forEach(pr => pr.catch(e => toast('Firestore: ' + e.message)));
+            for (const id of Object.keys(c)) if (!seen.has(id)) { dels.push(deleteDoc(doc(fs, 'users', id))); delete c[id]; }
+            ops.forEach(([id, pr]) => pr.catch(e => { delete c[id]; warn(e); }));
+            dels.forEach(pr => pr.catch(e => warn(e)));
         }
 
         // ---- Firebase -> lokal ----
@@ -3050,6 +3060,7 @@
                         if (i >= 0) l.splice(i, 1);
                         pend[kind] = true; return;
                     }
+                    if (id.startsWith('_')) return;
                     const v = ch.doc.data();
                     if (!v || typeof v !== 'object') return;
                     if (kind === 'stories' && (v.ts || 0) < Date.now() - STORY_TTL) return;
@@ -3333,6 +3344,7 @@
         })().finally(() => resolveReady());
         // pemeriksaan berkala: sambungkan ulang chat otomatis kalau sempat gagal
         setInterval(() => { if (sync.ready && !st.chat) { chatRetryAt = 0; retryChat(); } }, 30000);
+        setInterval(() => { if (sync.ready && sync.failed) { sync.failed = false; push(); } }, 15000);
 
         // ---- diagnosis koneksi: tunjukkan persis layanan Firebase mana yang bermasalah ----
         function fbHint(e) {
@@ -3349,6 +3361,13 @@
             const u = auth.currentUser;
             if (u) add(true, 'Login Firebase', u.isAnonymous ? 'anonim' : (u.email || 'terdaftar'));
             else add(false, 'Login Firebase', fbHint(sync.errors.auth || 'belum login'));
+            if (u && !u.isAnonymous) add(true, 'Sesi Google', u.email);
+            else add(false, 'Sesi Google', 'masih anonim, rules menolak semua tulis chat. Tekan Keluar lalu login Google lagi');
+            try {
+                const me0 = teamUsers.find(x => String(x.id) === String(activeUserId)), em = String((u && u.email) || '').toLowerCase();
+                const okOwn = !!me0 && (String(me0.email || '').toLowerCase() === em || String(me0.ownerEmail || '').toLowerCase() === em || (window.canSwitchTo && canSwitchTo(me0.id)));
+                add(okOwn, 'Akun aktif milik sesi ini', me0 ? (okOwn ? me0.name : 'email akun (' + me0.email + ') beda dengan akun Google (' + (em || '-') + ')') : 'akun aktif tidak ditemukan');
+            } catch (e) { add(false, 'Akun aktif milik sesi ini', String(e.message || e)); }
             try { const s = await withTimeout(getDocs(collection(fs, 'users')), 8000); add(true, 'Firestore baca anggota', s.size + ' anggota'); }
             catch (e) { add(false, 'Firestore baca anggota', fbHint(e)); }
             try {
@@ -3357,6 +3376,12 @@
                 else await withTimeout(setDoc(doc(fs, 'presence', '_diag'), { online: false, lastSeen: serverTimestamp() }), 8000);
                 add(true, 'Firestore tulis anggota');
             } catch (e) { add(false, 'Firestore tulis anggota', fbHint(e)); }
+            try {
+                const dr = doc(fs, 'messages', '_diag');
+                await withTimeout(setDoc(dr, { id: '_diag', senderId: String(activeUserId), target: 'general', text: '', ts: Date.now() }), 8000);
+                deleteDoc(dr).catch(() => {});
+                add(true, 'Firestore kirim pesan');
+            } catch (e) { add(false, 'Firestore kirim pesan', fbHint(e)); }
             try { const s1 = await withTimeout(getDocs(fsQuery(collection(fs, 'messages'), fsLimit(1))), 8000); add(true, 'Firestore baca pesan', s1.size ? 'ada pesan' : 'kosong'); }
             catch (e) { add(false, 'Firestore baca pesan', fbHint(e)); }
             try { await withTimeout(getDocs(fsQuery(collection(fs, 'stories'), fsLimit(1))), 8000); add(true, 'Firestore baca cerita'); }
