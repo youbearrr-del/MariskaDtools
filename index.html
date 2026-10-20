@@ -164,7 +164,7 @@
 
             <!-- Active User Switcher Header Widget -->
             <div class="flex items-center gap-3">
-                <a href="#" onclick="downloadApk(event)" title="Download APK Android" class="apk-download-btn hidden sm:flex items-center gap-2 bg-space-accent hover:bg-emerald-600 text-white font-bold text-xs px-3.5 py-2.5 rounded-2xl shadow-sm transition">
+                <a data-flag="apk" href="#" onclick="downloadApk(event)" title="Download APK Android" class="apk-download-btn hidden sm:flex items-center gap-2 bg-space-accent hover:bg-emerald-600 text-white font-bold text-xs px-3.5 py-2.5 rounded-2xl shadow-sm transition">
                     <i class="fa-brands fa-android text-sm"></i> <span class="hidden lg:inline">Download APK</span>
                 </a>
                 <div class="relative group">
@@ -200,7 +200,7 @@
 
     <!-- MAIN CONTAINER -->
     <main class="max-w-[1700px] w-full mx-auto px-2 sm:px-4 lg:px-8 pt-4 pb-28 flex-1 flex flex-col">
-        <div class="stories-bar hidden md:flex gap-3 overflow-x-auto nav-scroll pb-3"></div>
+        <div data-flag="cerita" class="stories-bar hidden md:flex gap-3 overflow-x-auto nav-scroll pb-3"></div>
 
         <!-- ========================================================================= -->
         <!-- TAB 1: DASHBOARD RINGKASAN & PROFIL AKTIF -->
@@ -225,7 +225,7 @@
                     <button onclick="switchTab('tasks')" class="bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-2xl text-xs backdrop-blur-md border border-white/20 transition flex items-center gap-2">
                         <i class="fa-solid fa-list-check"></i> Kelola Tugas
                     </button>
-                    <a href="#" onclick="downloadApk(event)" class="apk-download-btn bg-space-accent hover:bg-emerald-600 text-white font-bold px-5 py-3 rounded-2xl text-xs transition shadow-lg flex items-center gap-2">
+                    <a data-flag="apk" href="#" onclick="downloadApk(event)" class="apk-download-btn bg-space-accent hover:bg-emerald-600 text-white font-bold px-5 py-3 rounded-2xl text-xs transition shadow-lg flex items-center gap-2">
                         <i class="fa-brands fa-android"></i> Download APK
                     </a>
                 </div>
@@ -363,7 +363,7 @@
                         </button>
                     </div>
 
-                    <div class="stories-bar flex md:hidden gap-2 overflow-x-auto nav-scroll pb-1 -mx-1 px-1"></div>
+                    <div data-flag="cerita" class="stories-bar flex md:hidden gap-2 overflow-x-auto nav-scroll pb-1 -mx-1 px-1"></div>
 
                     <!-- Search Bar -->
                     <div class="relative">
@@ -418,7 +418,7 @@
 
                     <!-- Header Actions -->
                     <div class="flex items-center gap-2 text-slate-500 shrink-0">
-                        <button onclick="openWallpaperModal()" title="Wallpaper chat" aria-label="Wallpaper chat" class="hover:bg-space-50 hover:text-space-600 w-10 h-10 rounded-xl transition bg-slate-50 border border-slate-200 flex items-center justify-center"><i class="fa-solid fa-palette text-space-600"></i></button>
+                        <button data-flag="wallpaper" onclick="openWallpaperModal()" title="Wallpaper chat" aria-label="Wallpaper chat" class="hover:bg-space-50 hover:text-space-600 w-10 h-10 rounded-xl transition bg-slate-50 border border-slate-200 flex items-center justify-center"><i class="fa-solid fa-palette text-space-600"></i></button>
                         <button onclick="toggleModal('shareAttachmentModal')" class="hover:bg-space-50 hover:text-space-600 p-2 rounded-xl transition flex items-center gap-1.5 text-xs font-bold px-3 bg-slate-50 border border-slate-200">
                             <i class="fa-solid fa-paperclip text-space-600"></i> <span class="hidden sm:inline">Lampirkan Data</span>
                         </button>
@@ -713,7 +713,7 @@
             <div id="storyPreview" class="w-full aspect-[9/16] max-h-[44vh] mx-auto rounded-2xl overflow-hidden bg-slate-50 border border-slate-200"></div>
             <input id="storyCaption" type="text" maxlength="120" placeholder="Tambahkan caption..." class="w-full mt-3 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:border-space-600">
             <button onclick="postStory()" class="w-full mt-3 bg-space-600 hover:bg-space-700 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-space-600/20">Bagikan cerita</button>
-            <p class="text-[11px] text-slate-400 font-medium text-center mt-2">Video maks. 2,5 MB. Cerita hilang setelah 24 jam.</p>
+            <p class="text-[11px] text-slate-400 font-medium text-center mt-2">Video maks. 600 KB. Cerita hilang setelah 24 jam.</p>
         </div>
     </div>
 
@@ -1059,18 +1059,19 @@
 
         function downloadApk(e) {
             if (e) e.preventDefault();
-            if (!APK_DOWNLOAD_URL || APK_DOWNLOAD_URL.includes('example.com')) {
-                showToast('Link APK belum diatur. Isi APK_DOWNLOAD_URL di dalam kode.', 4000);
+            const cfg = (window.fbMod && fbMod.config) || {}; const apkUrl = cfg.apkUrl || APK_DOWNLOAD_URL; const apkName = cfg.apkName || APK_FILE_NAME;
+            if (!apkUrl || apkUrl.includes('example.com')) {
+                showToast('Link APK belum diatur oleh moderator.', 4000);
                 return;
             }
             const a = document.createElement('a');
-            a.href = APK_DOWNLOAD_URL;
-            a.download = APK_FILE_NAME;      // dipakai jika link satu domain; lintas domain tetap terunduh via browser
+            a.href = apkUrl;
+            a.download = apkName;      // dipakai jika link satu domain; lintas domain tetap terunduh via browser
             a.rel = 'noopener';
             document.body.appendChild(a);
             a.click();
             a.remove();
-            showToast('Mengunduh ' + APK_FILE_NAME + '...');
+            showToast('Mengunduh ' + apkName + '...');
         }
 
         // GLOBAL APPLICATION STATE
@@ -1310,6 +1311,8 @@
             else pv.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs font-semibold text-slate-400 p-4 text-center">Pilih foto/video atau tulis cerita teks</div>';
         }
         function postStory() {
+            if (window.fbMod && fbMod.isMuted(activeUserId)) { showToast('Anda sedang dibungkam oleh moderator'); return; }
+            if (window.isFeatureOn && !isFeatureOn('cerita')) { showToast('Fitur cerita sedang dinonaktifkan oleh moderator'); return; }
             const d = storyDraft, text = document.getElementById('storyText').value.trim();
             if (!d.type || (d.type !== 'text' && !d.media) || (d.type === 'text' && !text)) { showToast('Isi cerita dulu: foto, video, atau tulisan'); return; }
             if ((d.media || '').length > 900000) { showToast('File cerita terlalu besar. Pilih yang lebih kecil.'); return; }
@@ -1959,6 +1962,13 @@
                     showToast('Pesan baru dari ' + (s ? s.name : 'anggota'));
                 }
             });
+            if (info.notes || info.todos) {
+                stickyNotes.sort((a, b) => String(b.id).localeCompare(String(a.id))); todos.sort((a, b) => Number(b.id) - Number(a.id));
+                localStorage.setItem('space_iso_notes', JSON.stringify(stickyNotes)); localStorage.setItem('space_iso_todos', JSON.stringify(todos));
+                const ae = document.activeElement;
+                if (!(ae && /TEXTAREA|INPUT/.test(ae.tagName) && isPageVisible('pageNotes'))) renderStickyNotes();
+                renderTodos(); updateStatsBar();
+            }
             if (info.users || info.messages || info.stories || newInActive) saveAllState();
             renderActiveUserHeader();
             if (typeof renderDashboard === 'function') renderDashboard();
@@ -2079,6 +2089,8 @@
 
         // TAB SWITCHER
         function switchTab(tabName) {
+            const ff = { notes: 'catatan', tasks: 'tugas', rooms: 'ruang' }[tabName];
+            if (ff && window.isFeatureOn && !window.isFeatureOn(ff)) { showToast('Fitur ini sedang dinonaktifkan oleh moderator'); return; }
             const tabs = ['dashboard', 'chat', 'users', 'notes', 'tasks', 'profile', 'rooms'];
             tabs.forEach(t => {
                 const pageEl = document.getElementById(`page${t.charAt(0).toUpperCase() + t.slice(1)}`);
@@ -2946,13 +2958,21 @@
             messages: { fs: true, list: () => spaceChatMessages, wire: m => m },
             stories:  { fs: true, list: () => stories,           wire: s => ({ ...s, viewedBy: Object.fromEntries((s.viewedBy || []).map(i => [i, true])) }) }
         };
-        const cache = { users: {}, messages: {}, stories: {} };
+        const cache = { users: {}, messages: {}, stories: {}, notes: {}, todos: {} };
+        KINDS.notes = { fs: true, list: () => stickyNotes, wire: n => n };
+        KINDS.todos = { fs: true, list: () => todos, wire: t => ({ ...t, id: String(t.id) }) };
         const sync = window.fbSync = { ready: false, status: { auth: null, users: null, chat: null }, errors: {} };
         const st = sync.status;
         let resolveReady; sync.whenReady = new Promise(r => { resolveReady = r; });
 
         function mergeRemote(kind, id, v) {
             v.id = id;
+            if (kind === 'notes' || kind === 'todos') {
+                const l = KINDS[kind].list(), j = l.findIndex(x => String(x.id) === id);
+                const o = kind === 'todos' ? { ...v, id: /^\d+$/.test(id) ? Number(id) : id } : { ...v };
+                if (j >= 0) l[j] = o; else l.push(o);
+                return;
+            }
             const list = KINDS[kind].list(), i = list.findIndex(x => String(x.id) === id);
             if (kind === 'users') {
                 if (i >= 0) { const u = list[i]; USER_FIELDS.slice(1).forEach(k => { if (v[k] === undefined) delete u[k]; else u[k] = v[k]; }); }
@@ -2973,6 +2993,7 @@
             for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1); // cerita > 24 jam
             if (st.users) pushUsers();
             if (st.chat) { pushDocs('messages'); pushDocs('stories'); } else retryChat();
+            if (st.shared) { pushDocs('notes'); pushDocs('todos'); } else retryShared();
         }
 
         let lastWarn = 0;
@@ -3037,6 +3058,26 @@
             loadChat().then(ok => { chatLoading = false; if (ok) { startChat(); push(); toast('Chat tersambung ke cloud'); } });
         }
 
+        let sharedListening = false, sharedLoading = false, sharedRetryAt = 0;
+        async function loadShared() {
+            try {
+                for (const kind of ['notes', 'todos']) {
+                    const snap = await withTimeout(getDocs(collection(fs, kind)), 12000);
+                    snap.forEach(d => {
+                        const v = d.data(); if (!v || typeof v !== 'object') return;
+                        cache[kind][d.id] = flat({ ...v, id: d.id });
+                        mergeRemote(kind, d.id, { ...v });
+                    });
+                }
+                st.shared = true; delete sync.errors.shared; return true;
+            } catch (e) { st.shared = false; sync.errors.shared = e; console.warn(e); return false; }
+        }
+        function startShared() { if (sharedListening) return; sharedListening = true; listen('notes'); listen('todos'); }
+        function retryShared() {
+            if (st.shared || sharedLoading || !sync.ready || Date.now() < sharedRetryAt) return;
+            sharedRetryAt = Date.now() + 20000; sharedLoading = true;
+            loadShared().then(ok => { sharedLoading = false; if (ok) { startShared(); push(); pend.notes = pend.todos = true; sched(); } });
+        }
         function pushUsers() {
             const c = cache.users, seen = new Set(), ops = [], dels = [];
             for (const u of teamUsers) {
@@ -3208,6 +3249,12 @@
             const fl = (mod.config && mod.config.flags) || {};
             document.querySelectorAll('[data-flag]').forEach(el => { const d = fl[el.dataset.flag] === false ? 'none' : ''; if (el.style.display !== d) el.style.display = d; });
             window.fbFlags = fl; window.isFeatureOn = n => fl[n] !== false;
+            const hideEl = (el, off) => { if (el && el.style.display !== (off ? 'none' : '')) el.style.display = off ? 'none' : ''; };
+            const ps = document.getElementById('profStoryInfo'); hideEl(ps && ps.parentElement && ps.parentElement.parentElement, fl.cerita === false);
+            const dv = document.getElementById('devList'); hideEl(dv && dv.parentElement, fl.perangkat === false);
+            [['pageNotes', 'catatan'], ['pageTasks', 'tugas'], ['pageRooms', 'ruang']].forEach(([p, f]) => {
+                if (fl[f] === false && typeof isPageVisible === 'function' && isPageVisible(p)) switchTab('dashboard');
+            });
         };
         mod.enforce = function () {
             const c = mod.config || {};
@@ -3361,9 +3408,11 @@
             // 2) pesan & cerita (Firestore); kalau gagal, dicoba lagi otomatis saat mengirim pesan
             sync._demo = demo;
             await loadChat();
+            await loadShared();
 
             sync.ready = true; mod.enforce();
             if (st.chat) startChat();
+            if (st.shared) startShared();
             if (st.users && !usersListening) { usersListening = true; listenUsers(); listenPresence(); listenLinks(); }
             if (st.users && !needsAccount && teamUsers.some(u => u.id === activeUserId)) sync.setActive(activeUserId);
             push();
@@ -3372,6 +3421,7 @@
         })().finally(() => resolveReady());
         // pemeriksaan berkala: sambungkan ulang chat otomatis kalau sempat gagal
         setInterval(() => { if (sync.ready && !st.chat) { chatRetryAt = 0; retryChat(); } }, 30000);
+        setInterval(() => { if (sync.ready && !st.shared) retryShared(); }, 30000);
         setInterval(() => { if (sync.ready && sync.failed) { sync.failed = false; push(); } }, 15000);
 
         // ---- diagnosis koneksi: tunjukkan persis layanan Firebase mana yang bermasalah ----
