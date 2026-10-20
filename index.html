@@ -472,6 +472,9 @@
                     <p class="text-xs sm:text-sm text-slate-500 font-medium mt-1">Daftar anggota aktif, penentuan peran tim, serta ganti akun SpaceChat.</p>
                 </div>
                 <div class="flex gap-3 flex-wrap">
+                    <button onclick="window.fbDiagnose ? fbDiagnose() : showToast('Firebase belum dimuat, periksa koneksi internet')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2">
+                        <i class="fa-solid fa-wifi"></i> Cek koneksi
+                    </button>
                     <button onclick="toggleModal('inviteModal')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2">
                         <i class="fa-solid fa-link"></i> Link Undangan
                     </button>
@@ -858,7 +861,7 @@
         .dlg-icon { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: #EEF2FF; color: #4F46E5; font-size: 17px; margin-bottom: 14px; }
         .dlg-icon.danger { background: #FFF1F2; color: #E11D48; }
         .dlg-title { font-size: 16px; font-weight: 800; color: #0F172A; line-height: 1.3; }
-        .dlg-msg { margin-top: 6px; font-size: 13px; font-weight: 500; color: #64748B; line-height: 1.55; }
+        .dlg-msg { white-space: pre-line; margin-top: 6px; font-size: 13px; font-weight: 500; color: #64748B; line-height: 1.55; }
         .dlg-input { width: 100%; margin-top: 16px; border: 1px solid #E2E8F0; border-radius: 12px; padding: 11px 14px; font-size: 16px; font-weight: 700; letter-spacing: .12em; text-align: center; color: #0F172A; background: #F8FAFC; outline: none; transition: border-color .15s, box-shadow .15s, background .15s; }
         .dlg-input:focus { border-color: #4F46E5; background: #fff; box-shadow: 0 0 0 4px rgba(79,70,229,.12); }
         .dlg-actions { display: flex; gap: 10px; margin-top: 22px; }
@@ -2514,11 +2517,11 @@
         async function handleAddNewUser(e) {
             e.preventDefault();
             const name = document.getElementById('newUserName').value.trim();
-            const email = document.getElementById('newUserEmail').value.trim();
+            const email = document.getElementById('newUserEmail').value.trim().toLowerCase();
             const role = document.getElementById('newUserRole').value;
 
             if (!name || !email) return;
-            if (teamUsers.some(u => String(u.email || '').toLowerCase() === email.toLowerCase())) { showToast('Email ini sudah terdaftar sebagai anggota'); return; }
+            if (teamUsers.some(u => String(u.email || '').toLowerCase() === email)) { showToast('Email ini sudah terdaftar sebagai anggota'); return; }
 
             const nu = {
                 id: 'user_' + Date.now(),
@@ -2530,20 +2533,31 @@
                 lastSeen: null,
                 joinedAt: Date.now()
             };
+            const btn = e.submitter || (e.target && e.target.querySelector('button[type="submit"]'));
+            if (btn) btn.disabled = true;
             teamUsers.push(nu);
-
             saveAllState();
             renderUsers();
             renderSpaceChatList();
+
+            // simpan ke cloud dan tunggu hasilnya supaya pesan gagal tidak terlewat
+            let cloudErr = null;
+            if (window.fbSync && fbSync.saveUser) {
+                try { await fbSync.saveUser(nu); } catch (err) { cloudErr = err; }
+            } else cloudErr = new Error('Firebase belum dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+            if (btn) btn.disabled = false;
+
             toggleModal('addUserModal');
             document.getElementById('newUserName').value = '';
             document.getElementById('newUserEmail').value = '';
 
-            // simpan ke cloud dan beri tahu hasilnya dengan jelas
-            if (window.fbSync && fbSync.saveUser) {
-                try { await fbSync.saveUser(nu); showToast(`Anggota ${name} ditambahkan dan tersinkron`); }
-                catch (err) { showToast(`${name} baru tersimpan di perangkat ini. Cloud gagal: ${err.message}`); }
-            } else showToast(`${name} baru tersimpan di perangkat ini. Firebase belum terhubung`);
+            if (!cloudErr) {
+                const msg = `${name} sudah tersimpan di cloud.\n\nMinta ${name} membuka link undangan (tombol Link Undangan), lalu masuk dengan Google memakai email ${email}. Email harus sama persis supaya akunnya terhubung.`;
+                if (window.appAlert) appAlert(msg, { title: 'Anggota ditambahkan' }); else showToast(`Anggota ${name} ditambahkan dan tersinkron`, 4000);
+            } else {
+                const msg = `${name} baru tersimpan di perangkat ini, belum di cloud, jadi orang lain belum bisa melihatnya.\n\nPenyebab: ${cloudErr.message}\n\nTekan tombol Cek koneksi di halaman Tim untuk detailnya. Setelah masalahnya diperbaiki, muat ulang halaman, anggota akan terkirim otomatis.`;
+                if (window.appAlert) appAlert(msg, { title: 'Gagal menyimpan ke cloud' }); else showToast(msg, 6000);
+            }
         }
 
         function deleteUser(id) {
@@ -2769,17 +2783,32 @@
         }
 
         function copyInviteLink() {
-            navigator.clipboard.writeText(location.href.split('#')[0]);
-            showToast('Link undangan disalin!');
+            const link = location.href.split('#')[0];
+            const local = !/^https?:$/.test(location.protocol) || /^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname);
+            if (local) {
+                const msg = 'Link ini hanya bisa dibuka di perangkat Anda sendiri:\n' + link + '\n\nUntuk mengundang orang lain, buka web ini dari alamat yang di-host (misalnya mariskaratnadewi.web.app di Firebase Hosting), lalu salin link dari sana.';
+                if (window.appAlert) appAlert(msg, { title: 'Link belum bisa dibagikan' }); else showToast(msg, 6000);
+                return;
+            }
+            const done = () => showToast('Link undangan disalin!');
+            const fallback = () => {
+                const el = document.getElementById('inviteLinkInput');
+                try { el.focus(); el.select(); el.setSelectionRange(0, 9999); document.execCommand('copy'); done(); }
+                catch (err) { showToast('Salin manual dari kolom link di atas', 3500); }
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done).catch(fallback);
+            else fallback();
         }
 
-        function showToast(msg) {
+        let toastTimer;
+        function showToast(msg, ms) {
             const toast = document.getElementById('toast');
             document.getElementById('toastMsg').innerText = msg;
             toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
-            setTimeout(() => {
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
                 toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
-            }, 2500);
+            }, ms || 2500);
         }
     </script>
 
@@ -2788,7 +2817,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
         import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-        import { getDatabase, ref, get, set, update, remove, onChildAdded, onChildChanged, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+        import { getDatabase, ref, get, set, update, remove, onChildAdded, onChildChanged, onChildRemoved, query as rtQuery, limitToFirst } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
         import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -2838,7 +2867,8 @@
             stories:  { list: () => stories,           wire: s => ({ ...s, viewedBy: Object.fromEntries((s.viewedBy || []).map(i => [i, true])) }) }
         };
         const cache = { users: {}, messages: {}, stories: {} };
-        const sync = window.fbSync = { ready: false };
+        const sync = window.fbSync = { ready: false, status: { auth: null, users: null, rtdb: null }, errors: {} };
+        const st = sync.status;
         let resolveReady; sync.whenReady = new Promise(r => { resolveReady = r; });
 
         function mergeRemote(kind, id, v) {
@@ -2861,10 +2891,10 @@
         function push() {
             const lim = Date.now() - STORY_TTL;
             for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1); // cerita > 24 jam
-            pushUsers();
+            if (st.users) pushUsers();
             const ups = {};
             for (const kind of Object.keys(KINDS)) {
-                if (KINDS[kind].fs) continue;
+                if (KINDS[kind].fs || !st.rtdb) continue;
                 const K = KINDS[kind], c = cache[kind], seen = new Set();
                 for (const item of K.list()) {
                     if (!item || item.id === undefined) continue;
@@ -3111,24 +3141,35 @@
         getRedirectResult(auth).then(r => { if (r && r.user) gDone(r.user); }).catch(e => { console.warn(e); if (gErr[e.code]) toast(gErr[e.code]); });
 
         // ---- simpan anggota baru langsung ke Firestore, dengan hasil yang bisa dibaca ----
+        let usersListening = false;
         sync.saveUser = async u => {
-            if (!sync.ready) throw new Error('belum terhubung ke Firebase, muat ulang halaman');
+            // pastikan sudah login ke Firebase (anonim) sebelum menulis
+            if (!auth.currentUser) {
+                try { await withTimeout(signInAnonymously(auth), 10000); st.auth = true; }
+                catch (e) { st.auth = false; sync.errors.auth = e; throw new Error(fbHint(e)); }
+            }
             const nf = flat(pick(u, USER_FIELDS));
             cache.users[String(u.id)] = nf;
-            try { await withTimeout(setDoc(doc(fs, 'users', String(u.id)), nf), 10000); }
-            catch (e) { delete cache.users[String(u.id)]; throw new Error(/permission/i.test(e.message) ? 'izin Firestore ditolak, periksa Rules' : e.message); }
+            try { await withTimeout(setDoc(doc(fs, 'users', String(u.id)), nf), 12000); }
+            catch (e) { delete cache.users[String(u.id)]; throw new Error(fbHint(e)); }
+            // kalau pemuatan awal gagal tapi sekarang berhasil, aktifkan sinkronisasi anggota
+            if (!st.users) {
+                st.users = true; sync.ready = true; delete sync.errors.users;
+                if (!usersListening) { usersListening = true; listenUsers(); listenPresence(); }
+            }
         };
 
         // ---- mulai ----
         (async function init() {
-            try { await withTimeout(signInAnonymously(auth), 10000); }
-            catch (e) { toast('Firebase Auth gagal: aktifkan "Anonymous" di Authentication > Sign-in method'); console.warn(e); }
+            try { await withTimeout(signInAnonymously(auth), 10000); st.auth = true; }
+            catch (e) { st.auth = false; sync.errors.auth = e; toast('Firebase Auth gagal: aktifkan "Anonymous" di Authentication > Sign-in method'); console.warn(e); }
             listenConfig();
+            const lim = Date.now() - STORY_TTL;
+            for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1);
+            const demo = new Set(); // sisa akun contoh (u1-u4 @company.com) dihapus dari database
+
+            // 1) anggota (Firestore), berdiri sendiri supaya masalah di Realtime Database tidak menghalangi tambah anggota
             try {
-                const lim = Date.now() - STORY_TTL;
-                for (let i = stories.length - 1; i >= 0; i--) if ((stories[i].ts || 0) < lim) stories.splice(i, 1);
-                // sisa akun contoh (u1-u4 @company.com) dihapus dari database
-                const demo = new Set();
                 (await withTimeout(getDocs(collection(fs, 'users')), 12000)).forEach(d => {
                     const v = d.data();
                     if (['u1', 'u2', 'u3', 'u4'].includes(d.id) && /@company\.com$/.test(v.email || '')) {
@@ -3137,6 +3178,11 @@
                     cache.users[d.id] = flat(pick({ ...v, id: d.id }, USER_FIELDS)); modNote(d.id, v);
                     mergeRemote('users', d.id, { ...v });
                 });
+                st.users = true;
+            } catch (e) { st.users = false; sync.errors.users = e; toast('Firestore: ' + e.message); console.warn(e); }
+
+            // 2) pesan & cerita (Realtime Database)
+            try {
                 for (const kind of Object.keys(KINDS)) {
                     if (KINDS[kind].fs) continue;
                     const val = (await withTimeout(get(ref(db, kind)), 12000)).val() || {};
@@ -3148,15 +3194,51 @@
                         mergeRemote(kind, id, { ...v });
                     }
                 }
-            } catch (e) { toast('Firebase: ' + e.message); console.warn(e); return; }
+                st.rtdb = true;
+            } catch (e) { st.rtdb = false; sync.errors.rtdb = e; toast('Realtime Database: ' + e.message); console.warn(e); }
+
+            if (!st.users && !st.rtdb) return;
             sync.ready = true; mod.enforce();
-            Object.keys(KINDS).filter(k => !KINDS[k].fs).forEach(listen);
-            listenUsers(); listenPresence();
-            if (!needsAccount && teamUsers.some(u => u.id === activeUserId)) sync.setActive(activeUserId);
+            if (st.rtdb) Object.keys(KINDS).filter(k => !KINDS[k].fs).forEach(listen);
+            if (st.users && !usersListening) { usersListening = true; listenUsers(); listenPresence(); }
+            if (st.users && !needsAccount && teamUsers.some(u => u.id === activeUserId)) sync.setActive(activeUserId);
             push();
             pend.users = pend.messages = pend.stories = true; sched();
-            toast('Terhubung ke Firebase');
+            toast(st.users && st.rtdb ? 'Terhubung ke Firebase' : 'Firebase terhubung sebagian, tekan Cek koneksi di halaman Tim');
         })().finally(() => resolveReady());
+
+        // ---- diagnosis koneksi: tunjukkan persis layanan Firebase mana yang bermasalah ----
+        function fbHint(e) {
+            const m = String((e && e.code ? e.code + ' ' : '') + (e && e.message ? e.message : e || ''));
+            if (/permission|insufficient/i.test(m)) return 'Rules menolak akses. Di Firebase Console buka Rules lalu izinkan pengguna yang sudah login (request.auth != null).';
+            if (/operation-not-allowed|admin-restricted/i.test(m)) return 'Aktifkan Anonymous di Authentication > Sign-in method.';
+            if (/unauthorized-domain/i.test(m)) return 'Tambahkan domain web ini di Authentication > Settings > Authorized domains.';
+            if (/not.?found|has not been used|not been enabled|disabled/i.test(m)) return 'Database belum dibuat. Buka Firestore Database lalu klik Create database.';
+            if (/tidak merespons|timeout|unavailable|network/i.test(m)) return 'Tidak ada respons. Periksa koneksi internet, ad-blocker, dan databaseURL.';
+            return m.slice(0, 160);
+        }
+        sync.diagnose = async function () {
+            const rows = [], add = (ok, label, detail) => rows.push((ok ? '[OK] ' : '[GAGAL] ') + label + (detail ? ': ' + detail : ''));
+            const u = auth.currentUser;
+            if (u) add(true, 'Login Firebase', u.isAnonymous ? 'anonim' : (u.email || 'terdaftar'));
+            else add(false, 'Login Firebase', fbHint(sync.errors.auth || 'belum login'));
+            try { const s = await withTimeout(getDocs(collection(fs, 'users')), 8000); add(true, 'Firestore baca anggota', s.size + ' anggota'); }
+            catch (e) { add(false, 'Firestore baca anggota', fbHint(e)); }
+            try {
+                const me = teamUsers.find(x => String(x.id) === String(activeUserId));
+                if (me) await withTimeout(setDoc(doc(fs, 'users', String(me.id)), flat(pick(me, USER_FIELDS)), { merge: true }), 8000);
+                else await withTimeout(setDoc(doc(fs, 'presence', '_diag'), { online: false, lastSeen: serverTimestamp() }), 8000);
+                add(true, 'Firestore tulis anggota');
+            } catch (e) { add(false, 'Firestore tulis anggota', fbHint(e)); }
+            try { await withTimeout(get(rtQuery(ref(db, 'messages'), limitToFirst(1))), 8000); add(true, 'Realtime Database baca pesan'); }
+            catch (e) { add(false, 'Realtime Database baca pesan', fbHint(e)); }
+            return rows.join('\n');
+        };
+        window.fbDiagnose = async function () {
+            toast('Memeriksa koneksi Firebase...');
+            const txt = await sync.diagnose();
+            if (window.appAlert) appAlert(txt, { title: 'Status koneksi Firebase' }); else alert(txt);
+        };
     </script>
 </body>
 </html>
