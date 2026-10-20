@@ -2925,9 +2925,18 @@
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, serverTimestamp, query as fsQuery, limit as fsLimit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
+        // Di domain *.vercel.app, login Google memakai domain sendiri (lewat vercel.json) supaya tidak diblokir
+        // pemblokiran penyimpanan pihak ketiga (Safari/iPhone, Chrome incognito). Jika proxy belum dipasang, kembali ke domain Firebase.
+        let AUTH_DOMAIN = "mariskaratnadewi.firebaseapp.com";
+        try {
+            if (/\.vercel\.app$/.test(location.hostname)) {
+                const pr = await fetch('/__/firebase/init.json', { cache: 'no-store' });
+                if (pr.ok && (pr.headers.get('content-type') || '').includes('json')) AUTH_DOMAIN = location.hostname;
+            }
+        } catch (e) { /* pakai domain Firebase */ }
         const firebaseConfig = {
             apiKey: "AIzaSyCrjc93q2BDW8654WzktcpxWK-JalUEYhU",
-            authDomain: "mariskaratnadewi.firebaseapp.com",
+            authDomain: AUTH_DOMAIN,
             // Realtime Database tidak lagi dipakai; baris databaseURL di bawah boleh dibiarkan.
             databaseURL: "https://mariskaratnadewi-default-rtdb.firebaseio.com",
             projectId: "mariskaratnadewi",
@@ -3316,7 +3325,8 @@
             const provider = new GoogleAuthProvider();
             provider.setCustomParameters({ prompt: 'select_account' });
             try {
-                const r = await signInWithPopup(auth, provider);
+                const hint = setTimeout(() => { gBtn(true); gLabel('Masuk dengan Google'); toast('Login belum selesai. Jika pop-up Google sudah tertutup tetapi halaman tetap di sini, browser memblokir penyimpanan pihak ketiga. Tekan lagi, atau pakai Chrome biasa (bukan incognito).', 9000); }, 20000);
+                let r; try { r = await signInWithPopup(auth, provider); } finally { clearTimeout(hint); }
                 gBtn(true); gLabel('Masuk dengan Google');
                 await gDone(r.user);
             } catch (e) {
